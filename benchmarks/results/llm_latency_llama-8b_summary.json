@@ -1,0 +1,60 @@
+{
+  "model": "llama-8b",
+  "levels": [
+    {
+      "concurrency": 1,
+      "requests": 30,
+      "ttft_p50": 23.0,
+      "ttft_p90": 23.6,
+      "ttft_p95": 23.6,
+      "ttft_p99": 24.1,
+      "ttft_min": 22.2,
+      "ttft_max": 24.1,
+      "errors": 0
+    },
+    {
+      "concurrency": 5,
+      "requests": 30,
+      "ttft_p50": 78.3,
+      "ttft_p90": 79.1,
+      "ttft_p95": 79.1,
+      "ttft_p99": 79.4,
+      "ttft_min": 77.4,
+      "ttft_max": 79.4,
+      "errors": 0
+    },
+    {
+      "concurrency": 10,
+      "requests": 30,
+      "ttft_p50": 111.2,
+      "ttft_p90": 128.2,
+      "ttft_p95": 128.2,
+      "ttft_p99": 128.2,
+      "ttft_min": 40.8,
+      "ttft_max": 128.2,
+      "errors": 0
+    },
+    {
+      "concurrency": 15,
+      "requests": 30,
+      "ttft_p50": 146.8,
+      "ttft_p90": 147.4,
+      "ttft_p95": 147.6,
+      "ttft_p99": 147.7,
+      "ttft_min": 44.7,
+      "ttft_max": 147.7,
+      "errors": 0
+    },
+    {
+      "concurrency": 20,
+      "requests": 30,
+      "ttft_p50": 174.7,
+      "ttft_p90": 175.6,
+      "ttft_p95": 175.8,
+      "ttft_p99": 175.9,
+      "ttft_min": 43.8,
+      "ttft_max": 175.9,
+      "errors": 0
+    }
+  ]
+}

@@ -1,12 +1,12 @@
 # Pipesong — Advance vs. Scope
 
-Last updated: 2026-03-22 19:55 UTC
+Last updated: 2026-03-22 21:30 UTC
 
 ## Overview
 
 | Phase | Scope | Status | Advance |
 |---|---|---|---|
-| **0 — Benchmarks** | Validate LLM, TTS, turn detection in Spanish | `IN PROGRESS` | 25% |
+| **0 — Benchmarks** | Validate LLM, TTS, turn detection in Spanish | `IN PROGRESS` | 80% |
 | **1 — First Call** | Pipeline + Telnyx + basic API + recording | `NOT STARTED` | 0% |
 | **2 — Multi-Agent + Tools** | Agent config, routing, function calling, webhooks | `NOT STARTED` | 0% |
 | **3 — Knowledge Base** | RAG pipeline, pgvector, retrieval | `NOT STARTED` | 0% |
@@ -23,18 +23,18 @@ Last updated: 2026-03-22 19:55 UTC
 
 | # | Activity | Status | Notes |
 |---|---|---|---|
-| 0.1 | Set up vLLM with Qwen 2.5 7B, Llama 3.1 8B, Gemma 2 9B | `DONE` | TensorDock RTX 4090. All 3 models downloaded. vLLM 0.6.6 (V1 engine crashed, V0 works). Qwen smoke test passed — natural Spanish. |
-| 0.2 | LLM: 50 Spanish conversational prompts | `READY` | Prompt set created and uploaded to server |
-| 0.3 | LLM: 20 function calling scenarios | `READY` | Prompt set created and uploaded to server |
-| 0.4 | LLM: First-token latency at 1/10/20 concurrent | `NOT STARTED` | Scripts needed |
-| 0.5 | LLM: AWQ 4-bit vs full precision quality delta | `NOT STARTED` | |
-| 0.6 | LLM: RAG-grounded questions (20), measure hallucination | `READY` | Prompt set created and uploaded to server |
-| 0.7 | TTS: Generate 20 Spanish sentences (Kokoro, Fish Speech, F5-TTS) | `NOT STARTED` | Kokoro Docker pulled. Fish Speech + F5 not yet set up. |
-| 0.8 | TTS: Downsample to 8kHz G.711, evaluate quality | `NOT STARTED` | Phone codec simulation |
-| 0.9 | TTS: Measure TTFB at 1/10 concurrent | `NOT STARTED` | |
-| 0.10 | Turn detection: Record 20 Spanish conversation fragments | `NOT STARTED` | Various pause patterns |
-| 0.11 | Turn detection: Test LiveKit vs Pipecat Smart Turn | `NOT STARTED` | LiveKit model downloaded. Pipecat Smart Turn not yet. |
-| 0.12 | Document results in `docs/phase0-benchmarks.md` | `NOT STARTED` | |
+| 0.1 | Set up vLLM with Qwen 2.5 7B, Llama 3.1 8B, Gemma 2 9B | `DONE` | All 3 downloaded. vLLM 0.6.6 works. Gemma eliminated (AWQ incompatible). |
+| 0.2 | LLM: 50 Spanish conversational prompts | `DONE` | Qwen 50/50, Llama 50/50. Both natural Spanish. Qwen slightly better variety. |
+| 0.3 | LLM: 20 function calling scenarios | `DONE` | Qwen 60%, Llama 40% (prompt-based). Native tools need vLLM 0.7+. |
+| 0.4 | LLM: First-token latency at 1/10/20 concurrent | `DONE` | Qwen: 22/94/130ms. Llama: 23/111/175ms. **5-10× better than planned.** |
+| 0.5 | LLM: AWQ 4-bit vs full precision quality delta | `SKIPPED` | Qwen AWQ quality is clearly sufficient. Not worth GPU time. |
+| 0.6 | LLM: RAG-grounded questions (20), measure hallucination | `DONE` | Both models: 0% hallucination, 5/5 unanswerable refused. |
+| 0.7 | TTS: Generate 20 Spanish sentences (Kokoro, Fish Speech, F5-TTS) | `DONE` | Kokoro 3 voices (ef_dora, em_alex, em_santa). Fish/F5 skipped — Kokoro strong enough. |
+| 0.8 | TTS: Downsample to 8kHz G.711, evaluate quality | `PARTIAL` | 60 phone-quality files generated. **Manual listening needed.** |
+| 0.9 | TTS: Measure TTFB at 1/10 concurrent | `DONE` | Sequential: 115ms p50. Concurrent(10): 518ms p50. |
+| 0.10 | Turn detection: Record 20 Spanish conversation fragments | `DEFERRED` | Need real phone audio, not TTS clips. Evaluate in Phase 1. |
+| 0.11 | Turn detection: Test LiveKit vs Pipecat Smart Turn | `DEFERRED` | Blocked on 0.10. Models downloaded and ready. |
+| 0.12 | Document results in `docs/phase0-benchmarks.md` | `DONE` | Full results document written. |
 
 **Decision gate:** If no LLM passes Spanish quality bar → reassess scope. If Kokoro fails Spanish → switch to Fish Speech (adds latency + VRAM).
 
@@ -224,6 +224,8 @@ Last updated: 2026-03-22 19:55 UTC
 | 2026-03-22 | Need GPU server for Phase 0 benchmarks | `RESOLVED` | TensorDock RTX 4090 KVM deployed. IP: 206.168.83.248. NVIDIA 570, CUDA 12.8, 24 GB VRAM, 32 GB RAM, 192 GB disk. |
 | 2026-03-22 | vLLM V1 engine crashes on TensorDock | `RESOLVED` | Downgraded from vLLM 0.18.0 (V1) to 0.6.6 (V0). V1 EngineCore fails silently on this driver/CUDA combo. V0 works fine. |
 | 2026-03-22 | Telnyx vs Twilio for Mexico numbers | `OPEN` | Validate during Phase 1 — test call quality from Mexico |
-| 2026-03-22 | LLM model selection | `OPEN` | Phase 0 decides: Qwen 2.5 7B vs Llama 3.1 8B vs Gemma 2 9B. Qwen smoke test positive. |
-| 2026-03-22 | TTS engine for Spanish | `OPEN` | Phase 0 decides: Kokoro vs Fish Speech vs F5-TTS |
-| 2026-03-22 | Turn detector for Spanish | `OPEN` | Phase 0 decides: LiveKit vs Pipecat Smart Turn |
+| 2026-03-22 | LLM model selection | `DECIDED` | **Qwen 2.5 7B AWQ.** 60% tool calling (vs Llama 40%), 130ms TTFT @20 concurrent (vs 175ms), 0% hallucination. Gemma eliminated. |
+| 2026-03-22 | TTS engine for Spanish | `DECIDED` | **Kokoro** (ef_dora female, em_alex male). 118ms TTFB, 0.5GB VRAM. Pending manual quality review. Fish Speech is fallback. |
+| 2026-03-22 | STT fallback model | `DECIDED` | **whisper-large-v3-turbo** (NOT distil-large-v3). 212ms avg, 100% Spanish detection. |
+| 2026-03-22 | Turn detector for Spanish | `DEFERRED` | Evaluate with real phone audio in Phase 1, not synthetic clips. |
+| 2026-03-22 | LLM latency much better than planned | `INFO` | TTFT 130ms @20 concurrent vs planned 500-800ms. Groq overflow threshold is ~40-60, not 15-25. |

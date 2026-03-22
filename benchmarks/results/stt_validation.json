@@ -1,0 +1,187 @@
+{
+  "model": "large-v3-turbo",
+  "load_time_s": 19.9,
+  "avg_ms": 211.9,
+  "results": [
+    {
+      "id": 1,
+      "file": "kokoro_ef_dora_01.wav",
+      "reference": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar",
+      "transcript": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 558.4
+    },
+    {
+      "id": 2,
+      "file": "kokoro_ef_dora_02.wav",
+      "reference": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le a",
+      "transcript": "Gracias por comunicarse con nosotros. Mi nombre es Carlos y con mucho gusto le a",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 214.0
+    },
+    {
+      "id": 3,
+      "file": "kokoro_ef_dora_03.wav",
+      "reference": "Permítame un momento mientras verifico la información en nuestro sistema.",
+      "transcript": "Permítame un momento mientras verifico la información en nuestro sistema.",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 185.2
+    },
+    {
+      "id": 4,
+      "file": "kokoro_ef_dora_04.wav",
+      "reference": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+      "transcript": "Me podría proporcionar su número de cuenta o el correo electrónico registrado.",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 176.5
+    },
+    {
+      "id": 5,
+      "file": "kokoro_ef_dora_05.wav",
+      "reference": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia oc",
+      "transcript": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia oc",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 188.7
+    },
+    {
+      "id": 6,
+      "file": "kokoro_ef_dora_06.wav",
+      "reference": "Vamos a resolver esto juntos, no se preocupe.",
+      "transcript": "Vamos a resolver esto juntos, no se preocupe.",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 170.8
+    },
+    {
+      "id": 7,
+      "file": "kokoro_ef_dora_07.wav",
+      "reference": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+      "transcript": "Su cita quedó agendada para el martes 15 de abril a las 3 de la tarde.",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 180.1
+    },
+    {
+      "id": 8,
+      "file": "kokoro_ef_dora_08.wav",
+      "reference": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos co",
+      "transcript": "El monto total de su factura es de $2,345.60.",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 167.8
+    },
+    {
+      "id": 9,
+      "file": "kokoro_ef_dora_09.wav",
+      "reference": "Le voy a transferir con un especialista del área técnica para que le brinden una",
+      "transcript": "Le voy a transferir con un especialista del área técnica para que le brinden una",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 195.8
+    },
+    {
+      "id": 10,
+      "file": "kokoro_ef_dora_10.wav",
+      "reference": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofr",
+      "transcript": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofr",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 204.2
+    },
+    {
+      "id": 11,
+      "file": "kokoro_ef_dora_11.wav",
+      "reference": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+      "transcript": "Hay algo más en lo que le pueda ayudar el día de hoy.",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 180.6
+    },
+    {
+      "id": 12,
+      "file": "kokoro_ef_dora_12.wav",
+      "reference": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinc",
+      "transcript": "Le confirmo que su ticket de soporte ha sido creado con el número ST45678.",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 197.5
+    },
+    {
+      "id": 13,
+      "file": "kokoro_ef_dora_13.wav",
+      "reference": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su ",
+      "transcript": "Para realizar el cambio necesito verificar su identidad, me puede confirmar su f",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 201.7
+    },
+    {
+      "id": 14,
+      "file": "kokoro_ef_dora_14.wav",
+      "reference": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañ",
+      "transcript": "El técnico estará visitando su domicilio el próximo jueves entre 9 de la mañana ",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 228.9
+    },
+    {
+      "id": 15,
+      "file": "kokoro_ef_dora_15.wav",
+      "reference": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolver",
+      "transcript": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolver",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 197.8
+    },
+    {
+      "id": 16,
+      "file": "kokoro_ef_dora_16.wav",
+      "reference": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de",
+      "transcript": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 188.1
+    },
+    {
+      "id": 17,
+      "file": "kokoro_ef_dora_17.wav",
+      "reference": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los p",
+      "transcript": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los p",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 204.2
+    },
+    {
+      "id": 18,
+      "file": "kokoro_ef_dora_18.wav",
+      "reference": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero c",
+      "transcript": "Desafortunadamente, no cuento con esa información, pero con gusto le transfiero ",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 210.1
+    },
+    {
+      "id": 19,
+      "file": "kokoro_ef_dora_19.wav",
+      "reference": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un exc",
+      "transcript": "Muchas gracias por su paciencia y por comunicarse con nosotros. Que tenga un exc",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 204.9
+    },
+    {
+      "id": 20,
+      "file": "kokoro_ef_dora_20.wav",
+      "reference": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de",
+      "transcript": "Prefiere que le enviemos la información por correo electrónico o por mensaje de ",
+      "language": "es",
+      "language_prob": 1,
+      "transcription_ms": 182.3
+    }
+  ]
+}

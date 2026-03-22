@@ -1,0 +1,200 @@
+{
+  "summary": {
+    "engine": "kokoro",
+    "voice": "em_alex",
+    "sequential": {
+      "ttfb_p50": 116.6,
+      "ttfb_p90": 119.5,
+      "ttfb_min": 79.7,
+      "ttfb_max": 120.0
+    },
+    "concurrent_10": {
+      "ttfb_p50": 591.0,
+      "ttfb_p90": 837.9,
+      "ttfb_min": 117.8,
+      "ttfb_max": 841.6
+    }
+  },
+  "generation": [
+    {
+      "id": 1,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Buenos días, le habla María del área de soporte técnico, ¿en",
+      "ttfb_ms": 117.6,
+      "total_ms": 118.6,
+      "audio_bytes": 221612
+    },
+    {
+      "id": 2,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Gracias por comunicarse con nosotros, mi nombre es Carlos y ",
+      "ttfb_ms": 116.6,
+      "total_ms": 118.0,
+      "audio_bytes": 250410
+    },
+    {
+      "id": 3,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Permítame un momento mientras verifico la información en nue",
+      "ttfb_ms": 113.6,
+      "total_ms": 114.4,
+      "audio_bytes": 214076
+    },
+    {
+      "id": 4,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "¿Me podría proporcionar su número de cuenta o el correo elec",
+      "ttfb_ms": 116.2,
+      "total_ms": 117.1,
+      "audio_bytes": 222836
+    },
+    {
+      "id": 5,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Entiendo perfectamente su situación y le ofrezco una disculp",
+      "ttfb_ms": 116.9,
+      "total_ms": 118.4,
+      "audio_bytes": 258830
+    },
+    {
+      "id": 6,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Vamos a resolver esto juntos, no se preocupe.",
+      "ttfb_ms": 79.7,
+      "total_ms": 80.2,
+      "audio_bytes": 140034
+    },
+    {
+      "id": 7,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Su cita quedó agendada para el martes quince de abril a las ",
+      "ttfb_ms": 114.2,
+      "total_ms": 115.0,
+      "audio_bytes": 208438
+    },
+    {
+      "id": 8,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "El monto total de su factura es de dos mil trescientos cuare",
+      "ttfb_ms": 118.7,
+      "total_ms": 120.2,
+      "audio_bytes": 292444
+    },
+    {
+      "id": 9,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Le voy a transferir con un especialista del área técnica par",
+      "ttfb_ms": 118.1,
+      "total_ms": 119.8,
+      "audio_bytes": 299630
+    },
+    {
+      "id": 10,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Lamentablemente esa opción no está disponible en este moment",
+      "ttfb_ms": 87.8,
+      "total_ms": 89.1,
+      "audio_bytes": 280440
+    },
+    {
+      "id": 11,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+      "ttfb_ms": 110.7,
+      "total_ms": 111.5,
+      "audio_bytes": 155648
+    },
+    {
+      "id": 12,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Le confirmo que su ticket de soporte ha sido creado con el n",
+      "ttfb_ms": 116.0,
+      "total_ms": 117.3,
+      "audio_bytes": 287636
+    },
+    {
+      "id": 13,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Para realizar el cambio necesito verificar su identidad, ¿me",
+      "ttfb_ms": 117.7,
+      "total_ms": 119.1,
+      "audio_bytes": 288754
+    },
+    {
+      "id": 14,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "El técnico estará visitando su domicilio el próximo jueves e",
+      "ttfb_ms": 91.2,
+      "total_ms": 92.7,
+      "audio_bytes": 291244
+    },
+    {
+      "id": 15,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Entiendo su frustración y quiero asegurarle que estamos trab",
+      "ttfb_ms": 89.0,
+      "total_ms": 90.2,
+      "audio_bytes": 292430
+    },
+    {
+      "id": 16,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Le recomiendo reiniciar el equipo y esperar aproximadamente ",
+      "ttfb_ms": 118.7,
+      "total_ms": 120.3,
+      "audio_bytes": 302030
+    },
+    {
+      "id": 17,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Su pago fue procesado exitosamente y recibirá un correo de c",
+      "ttfb_ms": 119.4,
+      "total_ms": 120.7,
+      "audio_bytes": 281638
+    },
+    {
+      "id": 18,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Desafortunadamente no cuento con esa información, pero con g",
+      "ttfb_ms": 119.5,
+      "total_ms": 121.2,
+      "audio_bytes": 326030
+    },
+    {
+      "id": 19,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "Muchas gracias por su paciencia y por comunicarse con nosotr",
+      "ttfb_ms": 120.0,
+      "total_ms": 120.9,
+      "audio_bytes": 270836
+    },
+    {
+      "id": 20,
+      "engine": "kokoro",
+      "voice": "em_alex",
+      "sentence": "¿Prefiere que le enviemos la información por correo electrón",
+      "ttfb_ms": 85.5,
+      "total_ms": 86.2,
+      "audio_bytes": 232056
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{"id": 1, "type": "answerable", "question": "¿Cuánto cuesta el plan de 300 megas y qué incluye?", "error": "Internal Server Error", "response_time_ms": 1372}
+{"id": 2, "type": "answerable", "question": "Si quiero cancelar mi plan antes de los 12 meses, ¿cuánto me cobran?", "error": "Internal Server Error", "response_time_ms": 1214}
+{"id": 3, "type": "answerable", "question": "¿Cuánto cuesta una endodoncia y aceptan meses sin intereses?", "error": "Internal Server Error", "response_time_ms": 1207}
+{"id": 4, "type": "answerable", "question": "Reporté que mi internet no funciona, ¿en cuánto tiempo van a venir a arreglarlo?", "error": "Internal Server Error", "response_time_ms": 1447}
+{"id": 5, "type": "answerable", "question": "¿El servicio mayor tiene garantía? ¿De cuánto tiempo?", "error": "Internal Server Error", "response_time_ms": 1409}
+{"id": 6, "type": "answerable", "question": "Si tengo el plan Amplio, ¿cuánto es el deducible por robo total de mi carro?", "error": "Internal Server Error", "response_time_ms": 1250}
+{"id": 7, "type": "answerable", "question": "Compré unos audífonos in-ear hace una semana y no me gustaron, ¿los puedo devolver?", "error": "Internal Server Error", "response_time_ms": 1416}
+{"id": 8, "type": "answerable", "question": "¿El plan PyME incluye facturación electrónica CFDI 4.0?", "error": "Internal Server Error", "response_time_ms": 1303}
+{"id": 9, "type": "answerable", "question": "¿Cuánto equipaje puedo llevar en la tarifa Clásica?", "error": "Internal Server Error", "response_time_ms": 1406}
+{"id": 10, "type": "answerable", "question": "Mi pedido llegó con productos equivocados, ¿puedo pedir un reembolso?", "error": "Internal Server Error", "response_time_ms": 1399}
+{"id": 11, "type": "partial", "question": "¿El paquete TV Premium incluye canales deportivos como ESPN y Fox Sports, y cuántos dispositivos puedo usar al mismo tiempo?", "error": "Internal Server Error", "response_time_ms": 1454}
+{"id": 12, "type": "partial", "question": "¿Cuánto cuesta el Invisalign y tienen algún plan de financiamiento o descuento por pago de contado?", "error": "Internal Server Error", "response_time_ms": 1273}
+{"id": 13, "type": "partial", "question": "¿Hacen servicio de frenos para BMW Serie 3 y cuánto tardan en tenerlo listo?", "error": "Internal Server Error", "response_time_ms": 1237}
+{"id": 14, "type": "partial", "question": "Si mi carro está en el taller por un choque, ¿me dan auto sustituto y también me cubren los gastos médicos?", "error": "Internal Server Error", "response_time_ms": 1244}
+{"id": 15, "type": "partial", "question": "¿ContaFácil se integra con Amazon Seller y permite generar la DIOT automáticamente?", "error": "Internal Server Error", "response_time_ms": 1379}
+{"id": 16, "type": "unanswerable", "question": "¿FibraNet ofrece planes de internet para empresas con IP fija y soporte dedicado?", "error": "Internal Server Error", "response_time_ms": 1395}
+{"id": 17, "type": "unanswerable", "question": "¿SonrisaSana tiene sucursal en Monterrey o solo están en Guadalajara?", "error": "Internal Server Error", "response_time_ms": 1409}
+{"id": 18, "type": "unanswerable", "question": "¿TecnoShop ofrece garantía extendida adicional a la del fabricante? ¿Cuánto cuesta?", "error": "Internal Server Error", "response_time_ms": 1401}
+{"id": 19, "type": "unanswerable", "question": "¿AutoExpress hace trabajos de hojalatería y pintura para reparar golpes del carro?", "error": "Internal Server Error", "response_time_ms": 1324}
+{"id": 20, "type": "unanswerable", "question": "¿VuelaMax tiene vuelos internacionales a Miami o a Houston? ¿Cuánto cuestan?", "error": "Internal Server Error", "response_time_ms": 1179}
