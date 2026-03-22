@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Pipesong TTS Benchmark - Audio Samples</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #1a1a2e; color: #e0e0e0; }
+  h1 { color: #00d2ff; }
+  h2 { color: #7b68ee; margin-top: 40px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+  .voice-label { font-size: 14px; color: #888; margin-bottom: 4px; }
+  .sentence { font-size: 13px; color: #aaa; margin-bottom: 8px; font-style: italic; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th { text-align: left; padding: 8px; background: #16213e; color: #00d2ff; font-size: 13px; }
+  td { padding: 8px; border-bottom: 1px solid #222; vertical-align: middle; }
+  audio { width: 100%; height: 36px; }
+  .num { color: #666; font-size: 12px; width: 30px; }
+  .rate { display: inline-block; margin: 0 2px; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; background: #16213e; color: #888; border: 1px solid #333; }
+  .rate:hover { background: #1a3a5c; color: #fff; }
+  .rate.selected { background: #7b68ee; color: #fff; border-color: #7b68ee; }
+  #export { margin-top: 20px; padding: 10px 20px; background: #7b68ee; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  #export:hover { background: #6a5acd; }
+  #results { margin-top: 15px; padding: 10px; background: #16213e; border-radius: 6px; font-family: monospace; font-size: 12px; white-space: pre-wrap; display: none; }
+</style>
+</head>
+<body>
+<h1>Pipesong TTS Benchmark</h1>
+<p>8kHz G.711 mulaw (phone codec simulation). Rate each: 1=bad, 5=excellent.</p>
+<p style="color:#7b68ee; font-size: 13px;">Kokoro: 115ms TTFB | XTTS-v2: 2,393ms | Fish S2-Pro: 27,656ms (best quality, way too slow for real-time)</p>
+
+<div id="app"></div>
+
+<button id="export" onclick="exportRatings()">Export Ratings</button>
+<div id="results"></div>
+
+<script>
+const sentences = [
+  "Buenos d\u00edas, le habla Mar\u00eda del \u00e1rea de soporte t\u00e9cnico, \u00bfen qu\u00e9 le puedo ayudar?",
+  "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+  "Perm\u00edtame un momento mientras verifico la informaci\u00f3n en nuestro sistema.",
+  "\u00bfMe podr\u00eda proporcionar su n\u00famero de cuenta o el correo electr\u00f3nico registrado?",
+  "Entiendo perfectamente su situaci\u00f3n y le ofrezco una disculpa por la molestia ocasionada.",
+  "Vamos a resolver esto juntos, no se preocupe.",
+  "Su cita qued\u00f3 agendada para el martes quince de abril a las tres de la tarde.",
+  "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+  "Le voy a transferir con un especialista del \u00e1rea t\u00e9cnica para que le brinden una soluci\u00f3n m\u00e1s detallada.",
+  "Lamentablemente esa opci\u00f3n no est\u00e1 disponible en este momento, pero le puedo ofrecer una alternativa.",
+  "\u00bfHay algo m\u00e1s en lo que le pueda ayudar el d\u00eda de hoy?",
+  "Le confirmo que su ticket de soporte ha sido creado con el n\u00famero ST-cuatro-cinco-seis-siete-ocho.",
+  "Para realizar el cambio necesito verificar su identidad, \u00bfme puede confirmar su fecha de nacimiento?",
+  "El t\u00e9cnico estar\u00e1 visitando su domicilio el pr\u00f3ximo jueves entre nueve de la ma\u00f1ana y una de la tarde.",
+  "Entiendo su frustraci\u00f3n y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+  "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+  "Su pago fue procesado exitosamente y recibir\u00e1 un correo de confirmaci\u00f3n en los pr\u00f3ximos minutos.",
+  "Desafortunadamente no cuento con esa informaci\u00f3n, pero con gusto le transfiero con alguien que s\u00ed pueda ayudarle.",
+  "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente d\u00eda.",
+  "\u00bfPrefiere que le enviemos la informaci\u00f3n por correo electr\u00f3nico o por mensaje de texto?"
+];
+
+const voices = [
+  { id: "ef_dora", label: "ef_dora (Female Spanish)", prefix: "phone_kokoro_ef_dora" },
+  { id: "em_alex", label: "em_alex (Male Spanish)", prefix: "phone_kokoro_em_alex" },
+  { id: "em_santa", label: "em_santa (Male Spanish 2)", prefix: "phone_kokoro_em_santa" },
+  { id: "xtts", label: "XTTS-v2 (Multilingual, default speaker)", prefix: "phone_xtts_es" },
+  { id: "fish", label: "Fish Speech S2-Pro (Zero-shot, no reference)", prefix: "phone_fish_es" }
+];
+
+const ratings = {};
+const app = document.getElementById("app");
+
+voices.forEach(voice => {
+  const h2 = document.createElement("h2");
+  h2.textContent = voice.label;
+  app.appendChild(h2);
+
+  const table = document.createElement("table");
+  table.innerHTML = "<tr><th>#</th><th>Audio</th><th>Sentence</th><th>Rating</th></tr>";
+
+  for (let i = 1; i <= 20; i++) {
+    const num = String(i).padStart(2, "0");
+    const file = `${voice.prefix}_${num}.wav`;
+    const key = `${voice.id}_${num}`;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="num">${i}</td>
+      <td><audio controls preload="none"><source src="${file}" type="audio/wav"></audio></td>
+      <td class="sentence">${sentences[i-1]}</td>
+      <td class="rating-cell" data-key="${key}">
+        ${[1,2,3,4,5].map(n => `<span class="rate" onclick="rate('${key}',${n},this)">${n}</span>`).join("")}
+      </td>
+    `;
+    table.appendChild(tr);
+  }
+  app.appendChild(table);
+});
+
+function rate(key, value, el) {
+  ratings[key] = value;
+  el.parentElement.querySelectorAll(".rate").forEach(s => s.classList.remove("selected"));
+  el.classList.add("selected");
+}
+
+function exportRatings() {
+  const lines = ["voice,sentence_id,rating"];
+  Object.entries(ratings).sort().forEach(([key, val]) => {
+    const [voice, num] = [key.slice(0, key.lastIndexOf("_")), key.slice(key.lastIndexOf("_")+1)];
+    lines.push(`${voice},${parseInt(num)},${val}`);
+  });
+  const csv = lines.join("\n");
+  const div = document.getElementById("results");
+  div.style.display = "block";
+  div.textContent = csv + "\n\nRated: " + Object.keys(ratings).length + "/60";
+
+  // Also copy to clipboard
+  navigator.clipboard.writeText(csv).then(() => {
+    div.textContent += "\n(Copied to clipboard)";
+  }).catch(() => {});
+}
+</script>
+</body>
+</html>

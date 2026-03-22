@@ -105,24 +105,54 @@ Rationale:
 
 Sequential TTFB is excellent (~115ms). Concurrent TTFB degrades to ~500-600ms at concurrency=10 — still within the pipeline budget but notable.
 
+### XTTS-v2 (Coqui, multilingual)
+
+| Metric | Value |
+|---|---|
+| Generation time p50 | 2,393ms |
+| Generation time p90 | 3,245ms |
+| VRAM | ~4-6 GB |
+| Voice cloning | Yes (speaker_wav reference) |
+| License | CPML (non-commercial) |
+
+Ran via Docker (`ghcr.io/coqui-ai/tts`). Used default speaker with `language="es"`. **Not real-time viable** at 2.4s generation, but user reported "much better" quality than Kokoro.
+
+### Fish Speech S2-Pro
+
+| Metric | Value |
+|---|---|
+| Generation time p50 | 27,656ms |
+| Generation time p90 | 32,263ms |
+| VRAM | ~22 GB (nearly full 4090) |
+| Voice cloning | Yes (zero-shot, 10s reference) |
+| License | Apache 2.0 |
+
+Ran via Docker (`fishaudio/fish-speech:latest`) with `s2-pro` checkpoint. Gradio API. **Way too slow for real-time** — but potentially highest quality. Quality evaluation pending.
+
+### TTS Comparison Summary
+
+| Engine | TTFB/Gen Time | VRAM | Real-Time? | Quality (subjective) |
+|---|---|---|---|---|
+| Kokoro ef_dora | 118ms | 0.5 GB | **Yes** | Good, user wants better |
+| Kokoro em_alex | 117ms | 0.5 GB | **Yes** | Good, user wants better |
+| Kokoro em_santa | 114ms | 0.5 GB | **Yes** | Good, user wants better |
+| XTTS-v2 | 2,393ms | ~5 GB | No | "Much better" per user |
+| Fish S2-Pro | 27,656ms | ~22 GB | No | TBD — pending listening |
+
 ### Voice Quality
 
-**Manual listening evaluation needed.** Audio files generated:
-- 60 WAV files (20 sentences × 3 voices) in `benchmarks/audio/tts_output/kokoro/`
-- 60 phone-quality files (8kHz G.711 mulaw) in `benchmarks/audio/phone_quality/`
+**Manual listening evaluation in progress.** 100 phone-quality files (8kHz G.711 mulaw) served via HTTP player for comparison across all 5 voice options.
 
-To evaluate: download phone-quality files, listen, rate naturalness/intelligibility/accent.
-
-### Fish Speech / F5-TTS
-
-Not benchmarked. Kokoro's latency numbers are strong enough to proceed. Fish Speech is the fallback if Kokoro's Spanish voice quality is insufficient after manual listening.
+Early feedback: user found XTTS-v2 "much better" than Kokoro for Spanish. Fish Speech quality TBD.
 
 ### TTS Decision
 
-**Preliminary winner: Kokoro** — pending manual voice quality evaluation.
+**PENDING.** The TTS decision is now more nuanced:
 
-If quality passes: Kokoro at $0/min and 0.5 GB VRAM is the clear choice.
-If quality fails: pull Fish Speech Docker and benchmark ($4-6 GB VRAM, 200-400ms TTFB).
+- **For real-time serving:** Only Kokoro is fast enough (115ms). XTTS (2.4s) and Fish (27.6s) are not viable for live calls.
+- **For quality:** XTTS is preferred. Fish quality TBD.
+- **Possible hybrid strategy:** Use XTTS or Fish to generate a high-quality reference voice offline, then explore if Kokoro can use that voice profile, or investigate serving XTTS with streaming/batching optimizations.
+- **Alternative:** Accept Kokoro's quality for MVP, upgrade TTS engine when faster alternatives emerge.
 
 ---
 
