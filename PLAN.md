@@ -373,6 +373,23 @@ LiveKit's model has an advantage: CPU-only, no GPU needed. Pipecat's model has a
 
 **Local embeddings preferred** over OpenAI to avoid another cloud dependency and per-token cost. `all-MiniLM-L6-v2` is fast enough for real-time retrieval and free.
 
+### 5.8 GPU Infrastructure: TensorDock (Benchmarking) → Dedicated (Production)
+
+**Phase 0 benchmarking:** TensorDock RTX 4090 KVM instance ($0.35/hr, ~$59/week).
+
+| Factor | TensorDock | RunPod Community | Vast.ai |
+|---|---|---|---|
+| Price (RTX 4090) | $0.35/hr | $0.34/hr | $0.29-0.35/hr |
+| Isolation | KVM (full VM) | Docker container | Docker container |
+| SLA | 99.99% | Best-effort | None (peer marketplace) |
+| Access | Full root, systemd | Container root | Container root |
+| Port exposure | Any port | Any port | Any port |
+| Reliability | High | Good | Variable |
+
+**Why TensorDock over RunPod:** KVM isolation gives a real VM with systemd, closer to production. Same price. 99.99% SLA protects benchmark runs from interruption. RunPod Community ($0.34/hr) is the fallback if TensorDock stock is unavailable.
+
+**Production (Phase 5+):** Dedicated GPU server (Hetzner/OVH, ~$400-800/month) or reserved TensorDock instances. Decision deferred until benchmark results validate hardware requirements.
+
 ---
 
 ## 6. Agent Model

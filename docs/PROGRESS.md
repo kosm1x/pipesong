@@ -23,7 +23,7 @@ Last updated: 2026-03-22
 
 | # | Activity | Status | Notes |
 |---|---|---|---|
-| 0.1 | Set up vLLM with Qwen 2.5 7B, Llama 3.1 8B, Gemma 2 9B | `NOT STARTED` | Need GPU server |
+| 0.1 | Set up vLLM with Qwen 2.5 7B, Llama 3.1 8B, Gemma 2 9B | `NOT STARTED` | TensorDock RTX 4090 KVM |
 | 0.2 | LLM: 50 Spanish conversational prompts | `NOT STARTED` | Natural dialogue, not benchmarks |
 | 0.3 | LLM: 20 function calling scenarios | `NOT STARTED` | Booking, ticket CRUD, status checks |
 | 0.4 | LLM: First-token latency at 1/10/20 concurrent | `NOT STARTED` | Via vLLM, AWQ 4-bit |
@@ -221,7 +221,7 @@ Last updated: 2026-03-22
 
 | Date | Item | Status | Resolution |
 |---|---|---|---|
-| 2026-03-22 | Need GPU server for Phase 0 benchmarks | `OPEN` | Options: Hetzner/OVH dedicated, RunPod/Vast.ai cloud, or local hardware |
+| 2026-03-22 | Need GPU server for Phase 0 benchmarks | `DECIDED` | TensorDock RTX 4090 KVM ($0.35/hr, ~$59/week). KVM isolation, 99.99% SLA, full VM with systemd. RunPod Community ($0.34/hr) as fallback if TensorDock stock unavailable. |
 | 2026-03-22 | Telnyx vs Twilio for Mexico numbers | `OPEN` | Validate during Phase 1 — test call quality from Mexico |
 | 2026-03-22 | LLM model selection | `OPEN` | Phase 0 decides: Qwen 2.5 7B vs Llama 3.1 8B vs Gemma 2 9B |
 | 2026-03-22 | TTS engine for Spanish | `OPEN` | Phase 0 decides: Kokoro vs Fish Speech vs F5-TTS |
