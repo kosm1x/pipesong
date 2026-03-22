@@ -229,3 +229,7 @@ Last updated: 2026-03-22 22:45 UTC
 | 2026-03-22 | STT fallback model | `DECIDED` | **whisper-large-v3-turbo** (NOT distil-large-v3). 212ms avg, 100% Spanish detection. |
 | 2026-03-22 | Turn detector for Spanish | `DEFERRED` | Evaluate with real phone audio in Phase 1, not synthetic clips. |
 | 2026-03-22 | LLM latency much better than planned | `INFO` | TTFT 130ms @20 concurrent vs planned 500-800ms. Groq overflow threshold is ~40-60, not 15-25. |
+| 2026-03-22 | XTTS-v2 quality vs Kokoro speed tradeoff | `OPEN` | XTTS sounds "much better" but 20× slower (2.4s vs 115ms). Need hybrid strategy or accept Kokoro for MVP. |
+| 2026-03-22 | Fish S2-Pro uses 22GB VRAM | `INFO` | Cannot coexist with LLM on single RTX 4090. Only viable as offline voice generation, not real-time. |
+| 2026-03-22 | TensorDock GPU stopped | `INFO` | Instance stopped to save costs (~$3-4 spent). Restart when needed for Phase 1. |
+| 2026-03-22 | HTTP audio player running on VPS | `OPEN` | Port 8765 open (ufw rule `temp-pipesong-tts-review`). Close port + kill server after TTS review. |
