@@ -19,6 +19,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.kokoro.tts import KokoroTTSService
 from pipecat.services.openai.llm import OpenAILLMService
+from pipecat.services.tts_service import TextAggregationMode
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport
 
 from pipesong.config import settings
@@ -61,8 +62,22 @@ def create_pipeline(
     )
 
     # TTS — Kokoro local
+    # Text aggregation mode controls when TTS starts generating:
+    #   SENTENCE (default): waits for full sentence — 800-1600ms TTFB
+    #   TOKEN: generates on each token — lowest latency, may be choppy
+    #   WORD: generates on each word — middle ground
+    # Configurable via TTS_AGGREGATION_MODE env var
+    mode_map = {
+        "sentence": TextAggregationMode.SENTENCE,
+        "token": TextAggregationMode.TOKEN,
+        "word": TextAggregationMode.WORD,
+    }
+    tts_mode = mode_map.get(settings.tts_aggregation_mode, TextAggregationMode.SENTENCE)
+    logger.info("TTS aggregation mode: %s", settings.tts_aggregation_mode)
+
     tts = KokoroTTSService(
         voice_id=voice,
+        text_aggregation_mode=tts_mode,
         settings=KokoroTTSService.Settings(
             voice=voice,
             language="es",

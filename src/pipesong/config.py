@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     # Kokoro TTS
     kokoro_voice: str = "em_alex"
+    tts_aggregation_mode: str = "sentence"  # "sentence", "token", or "word"
 
     # PostgreSQL
     database_url: str = "postgresql+asyncpg://pipesong:pipesong@localhost:5432/pipesong"
@@ -28,6 +29,7 @@ class Settings(BaseSettings):
     # App
     app_host: str = "0.0.0.0"
     app_port: int = 8080
+    app_public_url: str = ""  # e.g. "ws://206.168.83.248:8080" — used in Telnyx webhook if set
     disclosure_text: str = "Esta llamada está siendo grabada para fines de calidad y entrenamiento."
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}

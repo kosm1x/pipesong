@@ -9,13 +9,12 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, WebSocket
-from fastapi.responses import Response
 
 from pipesong.config import settings
 from pipesong.models.agent import Agent
 from pipesong.models.call import Call
 from pipesong.pipeline import create_pipeline
-from pipesong.services.database import async_session, init_db
+from pipesong.services.database import async_session, engine, init_db
 from pipesong.services.storage import get_minio_client
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -31,33 +30,24 @@ async def lifespan(app: FastAPI):
     logger.info("Pipesong ready — listening on %s:%s", settings.app_host, settings.app_port)
     yield
     logger.info("Shutting down...")
+    await engine.dispose()
+    logger.info("Database connections closed.")
 
 
 app = FastAPI(title="Pipesong", version="0.1.0", lifespan=lifespan)
 
 from pipesong.api.agents import router as agents_router
 from pipesong.api.calls import router as calls_router
+from pipesong.api.telnyx import router as telnyx_router
 
 app.include_router(agents_router)
 app.include_router(calls_router)
+app.include_router(telnyx_router)
 
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
-
-
-@app.post("/telnyx/webhook")
-async def telnyx_webhook():
-    ws_url = f"ws://206.168.83.248:{settings.app_port}/ws"
-    texml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Connect>
-    <Stream url="{ws_url}" bidirectionalMode="rtp" />
-  </Connect>
-  <Pause length="600"/>
-</Response>"""
-    return Response(content=texml, media_type="application/xml")
 
 
 @app.websocket("/ws")
@@ -75,9 +65,6 @@ async def websocket_endpoint(websocket: WebSocket):
             FastAPIWebsocketTransport,
         )
 
-        # Use Pipecat's built-in Telnyx WebSocket parser
-        # Reads exactly 2 messages (connected + start), extracts metadata,
-        # leaves the WebSocket clean for the transport to handle audio
         transport_type, call_data = await parse_telephony_websocket(websocket)
         logger.info("Telnyx parsed: type=%s data=%s", transport_type, call_data)
 
@@ -103,8 +90,13 @@ async def websocket_endpoint(websocket: WebSocket):
             if not agent:
                 result = await session.execute(select(Agent).limit(1))
                 agent = result.scalar_one_or_none()
+                if agent:
+                    logger.warning(
+                        "Call %s: no agent for %s, falling back to '%s'",
+                        call_id, to_number, agent.name,
+                    )
             if not agent:
-                logger.error("No agent found")
+                logger.error("No agent found for %s and no fallback available", to_number)
                 await websocket.close()
                 return
 
@@ -118,7 +110,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
         logger.info("Call %s: agent=%s from=%s to=%s", call_id, agent.name, from_number, to_number)
 
-        # Create transport with Telnyx serializer (matching official example)
         serializer = TelnyxFrameSerializer(
             stream_id=stream_id,
             call_control_id=call_control_id,
@@ -137,7 +128,6 @@ async def websocket_endpoint(websocket: WebSocket):
             ),
         )
 
-        # Create pipeline
         task = create_pipeline(
             transport=transport,
             system_prompt=agent_prompt,
@@ -145,7 +135,6 @@ async def websocket_endpoint(websocket: WebSocket):
             voice=agent_voice,
         )
 
-        # Handle disconnect
         @transport.event_handler("on_client_disconnected")
         async def on_client_disconnected(transport, client):
             logger.info("Call %s: client disconnected", call_id)

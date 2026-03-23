@@ -10,10 +10,14 @@ router = APIRouter(tags=["telnyx"])
 @router.post("/telnyx/webhook")
 async def telnyx_webhook(request: Request):
     """Handle incoming Telnyx call. Returns TeXML that streams audio to our WebSocket."""
-    # Determine WebSocket URL from request host
-    host = request.headers.get("x-forwarded-host", request.url.hostname)
-    scheme = "wss" if request.url.scheme == "https" else "ws"
-    ws_url = f"{scheme}://{host}:{settings.app_port}/ws"
+    if settings.app_public_url:
+        # Use configured public URL (most reliable)
+        ws_url = f"{settings.app_public_url}/ws"
+    else:
+        # Derive from request headers (works behind proxy)
+        host = request.headers.get("x-forwarded-host", request.url.hostname)
+        scheme = "wss" if request.url.scheme == "https" else "ws"
+        ws_url = f"{scheme}://{host}:{settings.app_port}/ws"
 
     texml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>

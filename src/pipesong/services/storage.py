@@ -1,3 +1,4 @@
+import asyncio
 import io
 import logging
 
@@ -38,3 +39,8 @@ def upload_recording(call_id: str, audio_data: bytes, content_type: str = "audio
     url = f"http://{settings.minio_endpoint}/{settings.minio_bucket}/{object_name}"
     logger.info("Uploaded recording: %s (%d bytes)", object_name, len(audio_data))
     return url
+
+
+async def upload_recording_async(call_id: str, audio_data: bytes, content_type: str = "audio/wav") -> str:
+    """Async wrapper for upload_recording — prevents blocking the event loop."""
+    return await asyncio.to_thread(upload_recording, call_id, audio_data, content_type)
