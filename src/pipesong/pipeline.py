@@ -70,7 +70,6 @@ def create_pipeline(
     mode_map = {
         "sentence": TextAggregationMode.SENTENCE,
         "token": TextAggregationMode.TOKEN,
-        "word": TextAggregationMode.WORD,
     }
     tts_mode = mode_map.get(settings.tts_aggregation_mode, TextAggregationMode.SENTENCE)
     logger.info("TTS aggregation mode: %s", settings.tts_aggregation_mode)
