@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import String, Text
+from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pipesong.services.database import Base
@@ -17,4 +17,4 @@ class Agent(Base):
     voice: Mapped[str] = mapped_column(String(50), default="em_alex")
     phone_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
     disclosure_message: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

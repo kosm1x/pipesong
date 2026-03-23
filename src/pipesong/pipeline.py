@@ -2,22 +2,27 @@
 
 Creates a configured pipeline for each incoming call:
   Audio In → Deepgram STT → LLM Context → vLLM → Kokoro TTS → Audio Out
+
+Based on official Pipecat Telnyx chatbot example (v0.0.106).
 """
 import logging
 
+from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
-from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
+)
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.kokoro.tts import KokoroTTSService
-from pipecat.services.openai import OpenAILLMService
-from pipecat.transports.websocket.fastapi import (
-    FastAPIWebsocketParams,
-    FastAPIWebsocketTransport,
-)
-from pipecat.vad.silero import SileroVADAnalyzer
+from pipecat.services.openai.llm import OpenAILLMService
+from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport
 
 from pipesong.config import settings
+from pipesong.processors import SpanishOnlyFilter
 
 logger = logging.getLogger(__name__)
 
@@ -33,40 +38,60 @@ def create_pipeline(
     # STT — Deepgram streaming
     stt = DeepgramSTTService(
         api_key=settings.deepgram_api_key,
-        live_options={
-            "model": "nova-3",
-            "language": language,
-            "punctuate": True,
-            "smart_format": True,
-            "interim_results": True,
-        },
+        audio_passthrough=True,
+        sample_rate=8000,
+        settings=DeepgramSTTService.Settings(
+            language=language,
+            model="nova-3",
+            smart_format=True,
+            interim_results=True,
+        ),
     )
 
     # LLM — local vLLM via OpenAI-compatible API
     llm = OpenAILLMService(
         api_key="not-needed",
         base_url=settings.vllm_base_url,
-        model=settings.vllm_model,
+        settings=OpenAILLMService.Settings(
+            model=settings.vllm_model,
+            system_instruction=system_prompt,
+            max_tokens=150,
+            frequency_penalty=1.2,
+        ),
     )
 
     # TTS — Kokoro local
-    tts = KokoroTTSService(voice=voice)
+    tts = KokoroTTSService(
+        voice_id=voice,
+        settings=KokoroTTSService.Settings(
+            voice=voice,
+            language="es",
+        ),
+    )
 
-    # Conversation context
-    messages = [{"role": "system", "content": system_prompt}]
-    context = OpenAILLMContext(messages=messages)
-    context_aggregator = llm.create_context_aggregator(context)
+    # Context + VAD on user aggregator (official pattern)
+    context = LLMContext()
+    user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
+        context,
+        user_params=LLMUserAggregatorParams(
+            vad_analyzer=SileroVADAnalyzer(),
+        ),
+    )
 
-    # Pipeline: audio in → STT → context → LLM → TTS → audio out
+    # Filter non-Spanish text from LLM output (Qwen Chinese code-switching fix)
+    spanish_filter = SpanishOnlyFilter()
+
+    # Pipeline: audio in → STT → context → LLM → filter → TTS → audio out
     pipeline = Pipeline(
         [
             transport.input(),
             stt,
-            context_aggregator.user(),
+            user_aggregator,
             llm,
+            spanish_filter,
             tts,
             transport.output(),
-            context_aggregator.assistant(),
+            assistant_aggregator,
         ]
     )
 
@@ -75,8 +100,8 @@ def create_pipeline(
         params=PipelineParams(
             audio_in_sample_rate=8000,
             audio_out_sample_rate=8000,
-            allow_interruptions=True,
             enable_metrics=True,
+            enable_usage_metrics=True,
         ),
     )
 

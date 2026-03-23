@@ -9,13 +9,11 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, WebSocket
+from fastapi.responses import Response
 
-from pipesong.api.agents import router as agents_router
-from pipesong.api.calls import router as calls_router
-from pipesong.api.telnyx import router as telnyx_router
 from pipesong.config import settings
 from pipesong.models.agent import Agent
-from pipesong.models.call import Call, Transcript
+from pipesong.models.call import Call
 from pipesong.pipeline import create_pipeline
 from pipesong.services.database import async_session, init_db
 from pipesong.services.storage import get_minio_client
@@ -36,9 +34,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Pipesong", version="0.1.0", lifespan=lifespan)
+
+from pipesong.api.agents import router as agents_router
+from pipesong.api.calls import router as calls_router
+
 app.include_router(agents_router)
 app.include_router(calls_router)
-app.include_router(telnyx_router)
 
 
 @app.get("/health")
@@ -46,32 +47,52 @@ async def health():
     return {"status": "ok"}
 
 
+@app.post("/telnyx/webhook")
+async def telnyx_webhook():
+    ws_url = f"ws://206.168.83.248:{settings.app_port}/ws"
+    texml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Connect>
+    <Stream url="{ws_url}" bidirectionalMode="rtp" />
+  </Connect>
+  <Pause length="600"/>
+</Response>"""
+    return Response(content=texml, media_type="application/xml")
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """Handle Telnyx WebSocket media stream — run Pipecat pipeline per call."""
     await websocket.accept()
     call_id = uuid.uuid4()
     logger.info("WebSocket connected — call_id=%s", call_id)
 
     try:
-        # Parse Telnyx metadata from first WebSocket message
+        from pipecat.pipeline.runner import PipelineRunner
+        from pipecat.runner.utils import parse_telephony_websocket
         from pipecat.serializers.telnyx import TelnyxFrameSerializer
         from pipecat.transports.websocket.fastapi import (
             FastAPIWebsocketParams,
             FastAPIWebsocketTransport,
         )
-        from pipecat.vad.silero import SileroVADAnalyzer
 
-        # Wait for Telnyx connected message with metadata
-        first_msg = await asyncio.wait_for(websocket.receive_json(), timeout=10)
-        logger.info("Telnyx metadata: %s", {k: v for k, v in first_msg.items() if k != "event"})
+        # Use Pipecat's built-in Telnyx WebSocket parser
+        # Reads exactly 2 messages (connected + start), extracts metadata,
+        # leaves the WebSocket clean for the transport to handle audio
+        transport_type, call_data = await parse_telephony_websocket(websocket)
+        logger.info("Telnyx parsed: type=%s data=%s", transport_type, call_data)
 
-        stream_id = first_msg.get("stream_id", "")
-        call_control_id = first_msg.get("call_control_id", "")
-        from_number = first_msg.get("from", "")
-        to_number = first_msg.get("to", "")
+        stream_id = call_data.get("stream_id", "")
+        call_control_id = call_data.get("call_control_id", "")
+        from_number = call_data.get("from", "")
+        to_number = call_data.get("to", "")
+        outbound_encoding = call_data.get("outbound_encoding", "PCMU")
 
-        # Look up agent by phone number
+        if not stream_id:
+            logger.error("No stream_id from Telnyx")
+            await websocket.close()
+            return
+
+        # Look up agent
         async with async_session() as session:
             from sqlalchemy import select
 
@@ -79,24 +100,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 select(Agent).where(Agent.phone_number == to_number)
             )
             agent = result.scalar_one_or_none()
-
             if not agent:
-                # Fall back to first agent if no number match
                 result = await session.execute(select(Agent).limit(1))
                 agent = result.scalar_one_or_none()
-
             if not agent:
-                logger.error("No agent found for number %s", to_number)
+                logger.error("No agent found")
                 await websocket.close()
                 return
 
-            # Create call record
-            call = Call(
-                id=call_id,
-                agent_id=agent.id,
-                from_number=from_number,
-                to_number=to_number,
-            )
+            call = Call(id=call_id, agent_id=agent.id, from_number=from_number, to_number=to_number)
             session.add(call)
             await session.commit()
 
@@ -106,11 +118,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
         logger.info("Call %s: agent=%s from=%s to=%s", call_id, agent.name, from_number, to_number)
 
-        # Create Telnyx transport
+        # Create transport with Telnyx serializer (matching official example)
         serializer = TelnyxFrameSerializer(
             stream_id=stream_id,
             call_control_id=call_control_id,
-            outbound_encoding="PCMU",
+            outbound_encoding=outbound_encoding or "PCMU",
             inbound_encoding="PCMU",
             api_key=settings.telnyx_api_key,
         )
@@ -119,13 +131,13 @@ async def websocket_endpoint(websocket: WebSocket):
             websocket=websocket,
             params=FastAPIWebsocketParams(
                 serializer=serializer,
+                audio_in_enabled=True,
                 audio_out_enabled=True,
                 add_wav_header=False,
-                vad_analyzer=SileroVADAnalyzer(),
             ),
         )
 
-        # Create and run pipeline
+        # Create pipeline
         task = create_pipeline(
             transport=transport,
             system_prompt=agent_prompt,
@@ -133,16 +145,20 @@ async def websocket_endpoint(websocket: WebSocket):
             voice=agent_voice,
         )
 
-        logger.info("Call %s: pipeline starting", call_id)
-        await task.run()
+        # Handle disconnect
+        @transport.event_handler("on_client_disconnected")
+        async def on_client_disconnected(transport, client):
+            logger.info("Call %s: client disconnected", call_id)
+            await task.cancel()
+
+        runner = PipelineRunner()
+        logger.info("Call %s: pipeline running", call_id)
+        await runner.run(task)
         logger.info("Call %s: pipeline ended", call_id)
 
-    except asyncio.TimeoutError:
-        logger.warning("Call %s: timeout waiting for Telnyx metadata", call_id)
     except Exception as e:
         logger.error("Call %s: error — %s", call_id, e, exc_info=True)
     finally:
-        # Update call record
         try:
             async with async_session() as session:
                 call = await session.get(Call, call_id)
@@ -150,20 +166,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     call.ended_at = datetime.now(timezone.utc)
                     call.status = "completed"
                     if call.started_at:
-                        delta = call.ended_at - call.started_at
-                        call.duration_seconds = int(delta.total_seconds())
+                        call.duration_seconds = int((call.ended_at - call.started_at).total_seconds())
                     await session.commit()
                     logger.info("Call %s: completed (%ss)", call_id, call.duration_seconds)
         except Exception as e:
-            logger.error("Call %s: failed to update call record — %s", call_id, e)
+            logger.error("Call %s: failed to update call — %s", call_id, e)
 
 
 if __name__ == "__main__":
     import uvicorn
-
-    uvicorn.run(
-        "pipesong.main:app",
-        host=settings.app_host,
-        port=settings.app_port,
-        reload=True,
-    )
+    uvicorn.run("pipesong.main:app", host=settings.app_host, port=settings.app_port, reload=True)
