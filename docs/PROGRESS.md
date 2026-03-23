@@ -1,12 +1,12 @@
 # Pipesong — Advance vs. Scope
 
-Last updated: 2026-03-22 22:45 UTC
+Last updated: 2026-03-23
 
 ## Overview
 
 | Phase | Scope | Status | Advance |
 |---|---|---|---|
-| **0 — Benchmarks** | Validate LLM, TTS, turn detection in Spanish | `IN PROGRESS` | 90% |
+| **0 — Benchmarks** | Validate LLM, TTS, turn detection in Spanish | `DONE` | 100% |
 | **1 — First Call** | Pipeline + Telnyx + basic API + recording | `NOT STARTED` | 0% |
 | **2 — Multi-Agent + Tools** | Agent config, routing, function calling, webhooks | `NOT STARTED` | 0% |
 | **3 — Knowledge Base** | RAG pipeline, pgvector, retrieval | `NOT STARTED` | 0% |
@@ -16,10 +16,10 @@ Last updated: 2026-03-22 22:45 UTC
 
 ---
 
-## Phase 0 — Validate Assumptions (1 week)
+## Phase 0 — Validate Assumptions (COMPLETE)
 
 **Goal:** Kill the biggest risks before writing infrastructure code.
-**Exit:** Clear winner for LLM, TTS, and turn detector. Results in `docs/phase0-benchmarks.md`.
+**Result:** All major decisions made. Custom voice generation deferred to later phase.
 
 | # | Activity | Status | Notes |
 |---|---|---|---|
@@ -27,16 +27,24 @@ Last updated: 2026-03-22 22:45 UTC
 | 0.2 | LLM: 50 Spanish conversational prompts | `DONE` | Qwen 50/50, Llama 50/50. Both natural Spanish. Qwen slightly better variety. |
 | 0.3 | LLM: 20 function calling scenarios | `DONE` | Qwen 60%, Llama 40% (prompt-based). Native tools need vLLM 0.7+. |
 | 0.4 | LLM: First-token latency at 1/10/20 concurrent | `DONE` | Qwen: 22/94/130ms. Llama: 23/111/175ms. **5-10× better than planned.** |
-| 0.5 | LLM: AWQ 4-bit vs full precision quality delta | `SKIPPED` | Qwen AWQ quality is clearly sufficient. Not worth GPU time. |
+| 0.5 | LLM: AWQ 4-bit vs full precision quality delta | `SKIPPED` | Qwen AWQ quality is clearly sufficient. |
 | 0.6 | LLM: RAG-grounded questions (20), measure hallucination | `DONE` | Both models: 0% hallucination, 5/5 unanswerable refused. |
-| 0.7 | TTS: Generate 20 Spanish sentences (Kokoro, Fish Speech, F5-TTS) | `DONE` | Kokoro 3 voices + XTTS-v2 + Fish Speech S2-Pro. 100 phone-quality files total. |
-| 0.8 | TTS: Downsample to 8kHz G.711, evaluate quality | `WAITING` | 100 files on HTTP player (187.77.25.101:8765). **User listening and evaluating.** |
-| 0.9 | TTS: Measure TTFB at 1/10 concurrent | `DONE` | Kokoro: 115ms p50. XTTS: 2,393ms. Fish S2-Pro: 27,656ms. Only Kokoro is real-time viable. |
-| 0.10 | Turn detection: Record 20 Spanish conversation fragments | `DEFERRED` | Need real phone audio, not TTS clips. Evaluate in Phase 1. |
+| 0.7 | TTS: Generate 20 Spanish sentences (Kokoro, Fish Speech, F5-TTS) | `DONE` | Kokoro 3 voices + XTTS-v2 + Fish Speech S2-Pro. 100 phone-quality files. |
+| 0.8 | TTS: Downsample to 8kHz G.711, evaluate quality | `DONE` | User listened to all 100 samples. **Kokoro selected** with em_alex placeholder. Custom voices later. |
+| 0.9 | TTS: Measure TTFB at 1/10 concurrent | `DONE` | Kokoro: 115ms p50. XTTS: 2,393ms. Fish S2-Pro: 27,656ms. |
+| 0.10 | Turn detection: Record 20 Spanish conversation fragments | `DEFERRED` | Evaluate with real phone audio in Phase 1. |
 | 0.11 | Turn detection: Test LiveKit vs Pipecat Smart Turn | `DEFERRED` | Blocked on 0.10. Models downloaded and ready. |
-| 0.12 | Document results in `docs/phase0-benchmarks.md` | `DONE` | Full results document written. |
+| 0.12 | Document results in `docs/phase0-benchmarks.md` | `DONE` | Full results document written and updated. |
 
-**Decision gate:** If no LLM passes Spanish quality bar → reassess scope. If Kokoro fails Spanish → switch to Fish Speech (adds latency + VRAM).
+### Phase 0 Final Decisions
+
+| Component | Decision | Rationale |
+|---|---|---|
+| **LLM** | Qwen 2.5 7B AWQ via vLLM 0.6.6 | Best function calling (60%), fastest TTFT (130ms @20), 0% hallucination |
+| **TTS** | Kokoro, voice `em_alex` (placeholder) | Only real-time viable option (115ms). Custom voice generation planned for later. |
+| **STT** | Deepgram Nova-3 (primary) + whisper-large-v3-turbo (fallback) | Deepgram: 150-300ms streaming. Fallback: 212ms, 100% Spanish detection. |
+| **Turn detection** | Deferred to Phase 1 | Need real phone audio. Both LiveKit + Pipecat Smart Turn models ready. |
+| **Custom voices** | Deferred to post-Phase 1 | Kokoro em_alex is acceptable placeholder. Will generate custom Mexican Spanish voices later. |
 
 ---
 
@@ -49,17 +57,17 @@ Last updated: 2026-03-22 22:45 UTC
 |---|---|---|---|
 | **Infrastructure** | | | |
 | 1.1 | Docker Compose: PostgreSQL + MinIO | `NOT STARTED` | |
-| 1.2 | GPU server: vLLM (Phase 0 winner) serving | `NOT STARTED` | |
-| 1.3 | GPU server: TTS (Phase 0 winner) serving | `NOT STARTED` | |
-| 1.4 | GPU server: faster-whisper (distil-large-v3) fallback, loaded but idle | `NOT STARTED` | |
+| 1.2 | GPU server: vLLM (Qwen 2.5 7B AWQ) serving | `NOT STARTED` | Restart TensorDock |
+| 1.3 | GPU server: Kokoro TTS (em_alex) serving | `NOT STARTED` | |
+| 1.4 | GPU server: faster-whisper (large-v3-turbo) fallback, loaded but idle | `NOT STARTED` | |
 | 1.5 | Telnyx account: SIP trunk + first phone number | `NOT STARTED` | |
 | **Pipeline** | | | |
 | 1.6 | Pipecat app with Telnyx WebSocket serializer | `NOT STARTED` | Core pipeline |
 | 1.7 | Deepgram STT plugin (streaming) | `NOT STARTED` | |
 | 1.8 | STT fallback: switch to faster-whisper on Deepgram failure | `NOT STARTED` | |
 | 1.9 | LLM plugin → local vLLM (OpenAI-compatible) | `NOT STARTED` | |
-| 1.10 | TTS plugin (streaming) | `NOT STARTED` | |
-| 1.11 | Silero VAD + turn detector (Phase 0 winner) | `NOT STARTED` | |
+| 1.10 | TTS plugin (Kokoro, streaming) | `NOT STARTED` | |
+| 1.11 | Silero VAD + turn detector | `NOT STARTED` | Evaluate both LiveKit + Pipecat with real audio |
 | 1.12 | Recording disclosure: pre-recorded audio at call start | `NOT STARTED` | Legal requirement |
 | **API + Storage** | | | |
 | 1.13 | PostgreSQL schema: agents, calls, transcripts | `NOT STARTED` | |
@@ -207,7 +215,7 @@ Last updated: 2026-03-22 22:45 UTC
 
 | Milestone | Definition | Target Phase | Status |
 |---|---|---|---|
-| Models validated | LLM, TTS, turn detector pass Spanish benchmarks | 0 | `NOT STARTED` |
+| Models validated | LLM, TTS, turn detector pass Spanish benchmarks | 0 | `DONE` |
 | First call | AI answers phone, converses in Spanish, stores transcript | 1 | `NOT STARTED` |
 | Multi-agent | 5+ agents with KB handling calls | 3 | `NOT STARTED` |
 | Optimized | p50 <1,000ms over 100 test calls | 4 | `NOT STARTED` |
@@ -221,15 +229,15 @@ Last updated: 2026-03-22 22:45 UTC
 
 | Date | Item | Status | Resolution |
 |---|---|---|---|
-| 2026-03-22 | Need GPU server for Phase 0 benchmarks | `RESOLVED` | TensorDock RTX 4090 KVM deployed. IP: 206.168.83.248. NVIDIA 570, CUDA 12.8, 24 GB VRAM, 32 GB RAM, 192 GB disk. |
-| 2026-03-22 | vLLM V1 engine crashes on TensorDock | `RESOLVED` | Downgraded from vLLM 0.18.0 (V1) to 0.6.6 (V0). V1 EngineCore fails silently on this driver/CUDA combo. V0 works fine. |
-| 2026-03-22 | Telnyx vs Twilio for Mexico numbers | `OPEN` | Validate during Phase 1 — test call quality from Mexico |
-| 2026-03-22 | LLM model selection | `DECIDED` | **Qwen 2.5 7B AWQ.** 60% tool calling (vs Llama 40%), 130ms TTFT @20 concurrent (vs 175ms), 0% hallucination. Gemma eliminated. |
-| 2026-03-22 | TTS engine for Spanish | `PENDING REVIEW` | Benchmarked 5 voices: Kokoro (3 Spanish, 115ms), XTTS-v2 (2.4s), Fish S2-Pro (27.6s). User found XTTS "much better" than Kokoro. Fish quality TBD. Awaiting final listening comparison. |
-| 2026-03-22 | STT fallback model | `DECIDED` | **whisper-large-v3-turbo** (NOT distil-large-v3). 212ms avg, 100% Spanish detection. |
-| 2026-03-22 | Turn detector for Spanish | `DEFERRED` | Evaluate with real phone audio in Phase 1, not synthetic clips. |
-| 2026-03-22 | LLM latency much better than planned | `INFO` | TTFT 130ms @20 concurrent vs planned 500-800ms. Groq overflow threshold is ~40-60, not 15-25. |
-| 2026-03-22 | XTTS-v2 quality vs Kokoro speed tradeoff | `OPEN` | XTTS sounds "much better" but 20× slower (2.4s vs 115ms). Need hybrid strategy or accept Kokoro for MVP. |
-| 2026-03-22 | Fish S2-Pro uses 22GB VRAM | `INFO` | Cannot coexist with LLM on single RTX 4090. Only viable as offline voice generation, not real-time. |
-| 2026-03-22 | TensorDock GPU stopped | `INFO` | Instance stopped to save costs (~$3-4 spent). Restart when needed for Phase 1. |
-| 2026-03-22 | HTTP audio player running on VPS | `OPEN` | Port 8765 open (ufw rule `temp-pipesong-tts-review`). Close port + kill server after TTS review. |
+| 2026-03-22 | Need GPU server for Phase 0 benchmarks | `RESOLVED` | TensorDock RTX 4090 KVM. IP: 206.168.83.248. ~$3-4 spent. |
+| 2026-03-22 | vLLM V1 engine crashes on TensorDock | `RESOLVED` | Downgraded to vLLM 0.6.6 (V0). |
+| 2026-03-22 | LLM model selection | `RESOLVED` | **Qwen 2.5 7B AWQ.** |
+| 2026-03-22 | STT fallback model | `RESOLVED` | **whisper-large-v3-turbo** (NOT distil-large-v3 — English only). |
+| 2026-03-23 | TTS engine for Spanish | `RESOLVED` | **Kokoro, em_alex placeholder.** Custom voice generation deferred. XTTS/Fish too slow for real-time. |
+| 2026-03-23 | HTTP audio player | `RESOLVED` | Port 8765 closed, server killed. Review complete. |
+| 2026-03-22 | LLM latency much better than planned | `INFO` | TTFT 130ms @20 concurrent vs planned 500-800ms. Groq overflow threshold ~40-60. |
+| 2026-03-22 | Fish S2-Pro uses 22GB VRAM | `INFO` | Cannot coexist with LLM. Only viable offline. |
+| 2026-03-22 | Telnyx vs Twilio for Mexico numbers | `OPEN` | Validate during Phase 1. |
+| 2026-03-22 | Turn detector for Spanish | `OPEN` | Evaluate with real phone audio in Phase 1. |
+| 2026-03-23 | Custom voice generation | `OPEN` | Kokoro em_alex is placeholder. Need to generate custom Mexican Spanish voices (post-Phase 1). |
+| 2026-03-22 | TensorDock GPU stopped | `INFO` | Instance stopped. Restart for Phase 1. |

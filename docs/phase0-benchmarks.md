@@ -147,12 +147,15 @@ Early feedback: user found XTTS-v2 "much better" than Kokoro for Spanish. Fish S
 
 ### TTS Decision
 
-**PENDING.** The TTS decision is now more nuanced:
+**DECIDED: Kokoro with `em_alex` as placeholder voice.**
 
-- **For real-time serving:** Only Kokoro is fast enough (115ms). XTTS (2.4s) and Fish (27.6s) are not viable for live calls.
-- **For quality:** XTTS is preferred. Fish quality TBD.
-- **Possible hybrid strategy:** Use XTTS or Fish to generate a high-quality reference voice offline, then explore if Kokoro can use that voice profile, or investigate serving XTTS with streaming/batching optimizations.
-- **Alternative:** Accept Kokoro's quality for MVP, upgrade TTS engine when faster alternatives emerge.
+After listening to all 100 phone-quality samples across 5 voice options:
+- Kokoro is the only real-time viable option (115ms TTFB)
+- XTTS-v2 sounded "much better" but at 2.4s is too slow for live calls
+- Fish S2-Pro quality TBD but at 27.6s is completely non-viable for real-time
+- `em_alex` (Male Spanish) selected as placeholder voice for Phase 1
+
+**Custom voice generation deferred to post-Phase 1.** Strategy: generate custom Mexican Spanish voices using XTTS or Fish offline tooling, then serve them via Kokoro's voice system. This separates the voice creation (quality, offline) from voice serving (speed, real-time).
 
 ---
 
