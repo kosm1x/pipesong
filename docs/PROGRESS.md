@@ -1,13 +1,13 @@
 # Pipesong — Advance vs. Scope
 
-Last updated: 2026-03-23
+Last updated: 2026-03-23 07:00 UTC
 
 ## Overview
 
 | Phase | Scope | Status | Advance |
 |---|---|---|---|
 | **0 — Benchmarks** | Validate LLM, TTS, turn detection in Spanish | `DONE` | 100% |
-| **1 — First Call** | Pipeline + Telnyx + basic API + recording | `NOT STARTED` | 0% |
+| **1 — First Call** | Pipeline + Telnyx + basic API + recording | `IN PROGRESS` | 60% |
 | **2 — Multi-Agent + Tools** | Agent config, routing, function calling, webhooks | `NOT STARTED` | 0% |
 | **3 — Knowledge Base** | RAG pipeline, pgvector, retrieval | `NOT STARTED` | 0% |
 | **4 — Latency + Flows** | Sentence streaming, caching, flow engine | `NOT STARTED` | 0% |
@@ -56,24 +56,24 @@ Last updated: 2026-03-23
 | # | Activity | Status | Notes |
 |---|---|---|---|
 | **Infrastructure** | | | |
-| 1.1 | Docker Compose: PostgreSQL + MinIO | `NOT STARTED` | |
-| 1.2 | GPU server: vLLM (Qwen 2.5 7B AWQ) serving | `NOT STARTED` | Restart TensorDock |
-| 1.3 | GPU server: Kokoro TTS (em_alex) serving | `NOT STARTED` | |
-| 1.4 | GPU server: faster-whisper (large-v3-turbo) fallback, loaded but idle | `NOT STARTED` | |
-| 1.5 | Telnyx account: SIP trunk + first phone number | `NOT STARTED` | |
+| 1.1 | Docker Compose: PostgreSQL + MinIO | `DONE` | Running on TensorDock via docker-compose |
+| 1.2 | GPU server: vLLM (Qwen 2.5 7B AWQ) serving | `DONE` | Port 8000, clean pipesong-venv, TTFB 110ms |
+| 1.3 | GPU server: Kokoro TTS (em_alex) serving | `DONE` | Native in Pipecat (not Docker). TTFB 800-1600ms in pipeline (higher than standalone benchmark). |
+| 1.4 | GPU server: faster-whisper (large-v3-turbo) fallback | `NOT STARTED` | Not loaded yet |
+| 1.5 | Telnyx account: SIP trunk + first phone number | `DONE` | +12678840093 (US), TeXML app "Pipesong", webhook pointing to TensorDock |
 | **Pipeline** | | | |
-| 1.6 | Pipecat app with Telnyx WebSocket serializer | `NOT STARTED` | Core pipeline |
-| 1.7 | Deepgram STT plugin (streaming) | `NOT STARTED` | |
+| 1.6 | Pipecat app with Telnyx WebSocket serializer | `DONE` | FastAPI + parse_telephony_websocket() + TelnyxFrameSerializer |
+| 1.7 | Deepgram STT plugin (streaming) | `DONE` | Nova-3, Spanish, 220-270ms TTFB, interim results working |
 | 1.8 | STT fallback: switch to faster-whisper on Deepgram failure | `NOT STARTED` | |
-| 1.9 | LLM plugin → local vLLM (OpenAI-compatible) | `NOT STARTED` | |
-| 1.10 | TTS plugin (Kokoro, streaming) | `NOT STARTED` | |
-| 1.11 | Silero VAD + turn detector | `NOT STARTED` | Evaluate both LiveKit + Pipecat with real audio |
+| 1.9 | LLM plugin → local vLLM (OpenAI-compatible) | `DONE` | Qwen 2.5 7B AWQ, 110ms TTFB, frequency_penalty=1.2 |
+| 1.10 | TTS plugin (Kokoro, streaming) | `DONE` | em_alex voice, language=es. SpanishOnlyFilter strips CJK from Qwen output. |
+| 1.11 | Silero VAD + turn detector | `DONE` | Pipecat Smart Turn v3 auto-loaded. Working on real calls. |
 | 1.12 | Recording disclosure: pre-recorded audio at call start | `NOT STARTED` | Legal requirement |
 | **API + Storage** | | | |
-| 1.13 | PostgreSQL schema: agents, calls, transcripts | `NOT STARTED` | |
-| 1.14 | FastAPI: `POST /agents`, `GET /agents`, `GET /calls` | `NOT STARTED` | |
+| 1.13 | PostgreSQL schema: agents, calls, transcripts | `DONE` | Timezone-aware columns. Agent + Call + Transcript models. |
+| 1.14 | FastAPI: `POST /agents`, `GET /agents`, `GET /calls` | `DONE` | Working. Agent created via API. |
 | 1.15 | Call recording pipeline: audio → MinIO | `NOT STARTED` | |
-| 1.16 | Transcript storage: Deepgram transcript → PostgreSQL | `NOT STARTED` | |
+| 1.16 | Transcript storage: Deepgram transcript → PostgreSQL | `NOT STARTED` | Call records created but transcripts not persisted yet. |
 
 ---
 
@@ -216,7 +216,7 @@ Last updated: 2026-03-23
 | Milestone | Definition | Target Phase | Status |
 |---|---|---|---|
 | Models validated | LLM, TTS, turn detector pass Spanish benchmarks | 0 | `DONE` |
-| First call | AI answers phone, converses in Spanish, stores transcript | 1 | `NOT STARTED` |
+| First call | AI answers phone, converses in Spanish, stores transcript | 1 | `PARTIAL` — conversation works, storage not yet |
 | Multi-agent | 5+ agents with KB handling calls | 3 | `NOT STARTED` |
 | Optimized | p50 <1,000ms over 100 test calls | 4 | `NOT STARTED` |
 | Observable | Grafana live, post-call analysis working | 5 | `NOT STARTED` |
@@ -237,7 +237,12 @@ Last updated: 2026-03-23
 | 2026-03-23 | HTTP audio player | `RESOLVED` | Port 8765 closed, server killed. Review complete. |
 | 2026-03-22 | LLM latency much better than planned | `INFO` | TTFT 130ms @20 concurrent vs planned 500-800ms. Groq overflow threshold ~40-60. |
 | 2026-03-22 | Fish S2-Pro uses 22GB VRAM | `INFO` | Cannot coexist with LLM. Only viable offline. |
-| 2026-03-22 | Telnyx vs Twilio for Mexico numbers | `OPEN` | Validate during Phase 1. |
-| 2026-03-22 | Turn detector for Spanish | `OPEN` | Evaluate with real phone audio in Phase 1. |
+| 2026-03-23 | Telnyx Mexico numbers | `RESOLVED` | Mexico only has toll-free at $20/month. Bought US local +12678840093 at $1/month instead. |
+| 2026-03-23 | Turn detector for Spanish | `RESOLVED` | Pipecat Smart Turn v3 auto-loaded and working on real calls. |
 | 2026-03-23 | Custom voice generation | `OPEN` | Kokoro em_alex is placeholder. Need to generate custom Mexican Spanish voices (post-Phase 1). |
-| 2026-03-22 | TensorDock GPU stopped | `INFO` | Instance stopped. Restart for Phase 1. |
+| 2026-03-23 | First phone conversation achieved | `INFO` | Full conversation: greeting → problem diagnosis → router reset → resolution → goodbye. ~10 turns. |
+| 2026-03-23 | Qwen Chinese code-switching | `MITIGATED` | Qwen 2.5 switches to Chinese mid-response. SpanishOnlyFilter strips CJK before TTS. System prompt says "NUNCA uses otro idioma." Underlying issue: model weakness. |
+| 2026-03-23 | Kokoro TTS latency in pipeline | `OPEN` | Standalone benchmark: 115ms. In pipeline: 800-1600ms TTFB. Main latency bottleneck. Investigate in Phase 4. |
+| 2026-03-23 | Garbled Spanish pronunciation | `OPEN` | LLM outputs words joined together when CJK is stripped. Filter now replaces with spaces. Needs verification. |
+| 2026-03-23 | Pipecat v0.0.106 API changes | `INFO` | Many breaking changes from older docs: vad path, OpenAI import, Settings API, PipelineRunner, VAD on aggregator not transport. All resolved. |
+| 2026-03-23 | TensorDock GPU running | `INFO` | Instance running at $0.35/hr. Stop when done. |
