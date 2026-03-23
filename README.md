@@ -4,6 +4,16 @@ A cost-efficient, low-latency voice AI engine for handling hundreds to thousands
 
 **Target: <$0.03/min and <1s response latency** — vs Retell AI's $0.07-0.31/min.
 
+## Current Status
+
+**Phase 1 — First phone conversation achieved (2026-03-23).**
+
+A real caller dialed in, spoke Spanish with the AI agent for ~10 turns, troubleshot an internet connection problem (router reset), and said goodbye. Full pipeline working end-to-end.
+
+Measured latency: Deepgram STT 220ms + Qwen LLM 110ms + Kokoro TTS 800-1600ms.
+
+See [PROGRESS.md](docs/PROGRESS.md) for detailed status.
+
 ## What It Does
 
 Give Pipesong a system prompt, a knowledge base, and a phone number. It answers calls with an AI agent that sounds human, knows the topic, and can take actions.
@@ -14,12 +24,11 @@ POST /agents
   "name": "Soporte Técnico",
   "system_prompt": "Eres un agente de soporte para MiEmpresa...",
   "language": "es",
-  "voice": "kokoro_es_male_1",
-  "knowledge_base": { "documents": ["https://miempresa.com/faq", "manual.pdf"] },
-  "tools": [{ "name": "create_ticket", "endpoint": "https://api.example.com/tickets", ... }],
-  "flow": { "initial_state": "greeting", "states": { ... } }
+  "voice": "em_alex",
+  "phone_number": "+12678840093",
+  "disclosure_message": "Esta llamada está siendo grabada para fines de calidad."
 }
-→ Agent is live on +52 55 1234 5678
+→ Agent is live. Call the number.
 ```
 
 ## Why Not Retell AI?
@@ -28,108 +37,91 @@ POST /agents
 |---|---|---|
 | Cost at 120K min/mo | $8,400-36,000 | ~$2,500 |
 | Per minute | $0.07-0.30 | ~$0.02-0.03 |
-| Response latency (p50) | ~600ms-1.5s | ~900ms-1,100ms |
+| Response latency (p50) | ~600ms-1.5s | ~1-2s (unoptimized, Phase 4 targets <1s) |
 | Data | Their cloud | Your servers |
-| Single point of failure | Their platform | Each component has fallback |
 | Vendor lock-in | Yes | No |
 
 Savings come from running LLM and TTS locally. STT stays on Deepgram (local Whisper costs the same but adds 500-1000ms latency).
 
 ## Architecture
 
-Two stages: start simple, graduate when you need to.
-
-### Stage 1: Pipecat + Telnyx (up to ~20 concurrent calls)
-
 ```
-Telnyx (PSTN + phone numbers + WebSocket audio)
+Phone Call → Telnyx (PSTN + WebSocket audio)
   │
   ▼
-Python App (Pipecat pipeline + FastAPI)
+FastAPI + Pipecat Pipeline
   │
-  ├─ Deepgram STT (cloud, streaming, 150-300ms)
-  │   └─ fallback: local faster-whisper on Deepgram failure
-  │
-  ├─ LLM → vLLM server (local GPU)
-  │   └─ overflow: Groq API when GPU is saturated
-  │
-  └─ TTS → Kokoro server (local GPU)
-       └─ fallback: ElevenLabs on GPU failure
+  ├─ Deepgram STT (cloud, streaming, 220ms)
+  ├─ Qwen 2.5 7B AWQ via vLLM (local GPU, 110ms TTFB)
+  ├─ SpanishOnlyFilter (strips CJK from Qwen output)
+  ├─ Kokoro TTS em_alex (local, 800-1600ms in pipeline)
+  └─ Silero VAD + Pipecat Smart Turn v3
 
-Storage: PostgreSQL + pgvector | MinIO
+Storage: PostgreSQL (agents, calls, transcripts) + MinIO (recordings)
 ```
-
-### Stage 2: LiveKit (30+ concurrent calls)
-
-Same pipeline code, swap transport layer via Pipecat's `LiveKitTransport`:
-
-```
-Telnyx SIP Trunk → LiveKit SIP → LiveKit Server → Agent Workers → GPU Servers
-```
-
-Adds: SIP trunk flexibility, job dispatch, Redis clustering, multi-node scaling.
 
 ## Core Stack
 
-| Component | Technology | Why This |
+| Component | Technology | Measured Performance |
 |---|---|---|
-| Pipeline | [Pipecat](https://github.com/pipecat-ai/pipecat) | Python library, no infra to deploy. Telnyx serializer built-in. |
-| STT | [Deepgram Nova-3](https://deepgram.com) + local [faster-whisper](https://github.com/SYSTRAN/faster-whisper) fallback | 150-300ms streaming + resilience |
-| LLM | [vLLM](https://github.com/vllm-project/vllm) + Groq overflow | Local continuous batching + cloud overflow at peak |
-| TTS | [Kokoro](https://github.com/hexgrad/kokoro) (or Fish Speech) | 50-150ms TTFB, 0.5 GB VRAM |
-| Turn detection | [LiveKit turn-detector](https://huggingface.co/livekit/turn-detector) or Pipecat Smart Turn | CPU, 14 languages, 85% fewer false interruptions |
-| Telephony | [Telnyx](https://telnyx.com) | $0.007/min, WebSocket audio, good LATAM coverage |
-| Knowledge base | PostgreSQL + pgvector + local embeddings | No separate vector DB |
-| Flows | YAML-defined state machines, interpreted at runtime | API-deployable, no code changes needed |
+| Pipeline | [Pipecat 0.0.106](https://github.com/pipecat-ai/pipecat) | Telnyx WebSocket serializer, Smart Turn v3 |
+| STT | [Deepgram Nova-3](https://deepgram.com) | 220-270ms TTFB, Spanish streaming |
+| LLM | [vLLM 0.6.6](https://github.com/vllm-project/vllm) + Qwen 2.5 7B AWQ | 110ms TTFB, 130ms @20 concurrent |
+| TTS | [Kokoro](https://github.com/hexgrad/kokoro) `em_alex` | 115ms standalone, 800-1600ms in pipeline |
+| Turn detection | Pipecat Smart Turn v3 | Audio-based, working on real calls |
+| Telephony | [Telnyx](https://telnyx.com) | +12678840093 (US), $1/month, TeXML WebSocket |
+| VAD | Silero VAD | CPU, <10ms |
 
-## Latency Strategy
+## Quick Start
 
-Naive pipelines (STT → LLM → TTS sequential) land at 1.5-2.5 seconds. Pipesong uses proven overlap techniques:
+```bash
+# 1. Clone and install
+git clone https://github.com/kosm1x/pipesong
+cd pipesong
+cp .env.example .env  # Fill in API keys
 
-- **Sentence-level TTS streaming** — each LLM sentence streams to TTS immediately while the next generates
-- **Pre-cached responses** — common phrases ("Un momento por favor") play with 0ms TTS
-- **First-word priority** — LLM starts with short acknowledgment ("Claro, ...") while full answer generates
-- **Warm connections** — persistent WebSocket/HTTP to all services, zero handshake overhead
-- **Smart turn detection** — transformer model adjusts silence timeout by linguistic context
+# 2. Start PostgreSQL + MinIO
+docker compose up -d
 
-Result: **p50 ~900-1,100ms, p95 ~1,200-1,500ms**
+# 3. Start vLLM (needs GPU)
+python -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-7B-Instruct-AWQ \
+  --quantization awq --port 8000
 
-## Failure Resilience
+# 4. Start Pipesong
+PYTHONPATH=src python -m uvicorn pipesong.main:app --host 0.0.0.0 --port 8080
 
-| Failure | What Happens |
-|---|---|
-| Deepgram down | Automatic switch to local faster-whisper (+500-1000ms latency, but calls continue) |
-| GPU overloaded | New calls overflow to Groq API (LLM) automatically |
-| GPU crash | Emergency cloud fallback (Groq + ElevenLabs) at ~$0.05/min |
-| Telnyx issues | Manual failover to Twilio backup trunk |
+# 5. Create an agent
+curl -X POST http://localhost:8080/agents \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test","system_prompt":"Eres un agente amable...","language":"es","voice":"em_alex","phone_number":"+1XXXXXXXXXX","disclosure_message":"Esta llamada está siendo grabada."}'
 
-## Hardware Requirements
-
-**For 10-20 concurrent calls (Stage 1):**
-- 1× GPU server: 1× RTX 4090, 32 GB RAM, 8-core CPU
-- vLLM: ~8 GB VRAM, Kokoro: ~0.5 GB, faster-whisper fallback: ~4 GB
-
-**For 30-50 concurrent calls (Stage 2):**
-- 1× GPU server: 2× RTX 4090, 64 GB RAM, 16-core CPU
-- + LiveKit Server, SIP service, Redis
+# 6. Point Telnyx TeXML webhook to http://YOUR_IP:8080/telnyx/webhook
+# 7. Call the number
+```
 
 ## Roadmap
 
-| Phase | What | Duration |
+| Phase | What | Status |
 |---|---|---|
-| 0 | Validate LLM, TTS, and turn detector in Spanish | 1 week |
-| 1 | First phone call with AI agent | 2-3 weeks |
-| 2 | Multi-agent routing, tools, webhooks | 2-3 weeks |
-| 3 | Knowledge base (RAG) | 2 weeks |
-| 4 | Latency optimization, conversation flows | 4-6 weeks |
-| 5 | Call analysis, monitoring, Grafana | 2 weeks |
-| 6 | Scale hardening, batch calling, load testing | 3-4 weeks |
+| 0 | Validate LLM, TTS, turn detector in Spanish | **Done** |
+| 1 | First phone call with AI agent | **60%** — conversation works, storage pending |
+| 2 | Multi-agent routing, tools, webhooks | Not started |
+| 3 | Knowledge base (RAG) | Not started |
+| 4 | Latency optimization, conversation flows | Not started |
+| 5 | Call analysis, monitoring, Grafana | Not started |
+| 6 | Scale hardening, batch calling, load testing | Not started |
 
-**Total: 16-21 weeks.** See [PLAN.md](PLAN.md) for full details.
+**Total: 16-21 weeks.** See [PLAN.md](PLAN.md) for full details, [PROGRESS.md](docs/PROGRESS.md) for activity tracking.
 
-## Status
+## Known Issues
 
-**Pre-alpha.** Phase 0 (benchmarking) is next.
+| Issue | Status | Impact |
+|---|---|---|
+| Kokoro TTS latency in pipeline (800-1600ms vs 115ms standalone) | Open | Main latency bottleneck |
+| Qwen 2.5 switches to Chinese mid-response | Mitigated | SpanishOnlyFilter strips CJK before TTS |
+| No call recording or transcript persistence yet | Phase 1 remaining | Data not stored after calls |
+| No recording disclosure plays | Phase 1 remaining | Legal requirement for Mexico |
 
 ## License
 
