@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     # Telnyx
     telnyx_api_key: str = ""
     telnyx_phone_number: str = ""
+    telnyx_connection_id: str = ""  # TeXML app ID for outbound calls
 
     # Deepgram
     deepgram_api_key: str = ""

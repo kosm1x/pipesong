@@ -25,7 +25,8 @@ from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 
 from pipesong.config import settings
-from pipesong.processors import SpanishOnlyFilter, TranscriptCapture
+from pipesong.processors import SpanishOnlyFilter, ToolCallProcessor, TranscriptCapture
+from pipesong.services.tools import ToolExecutor, format_tools_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,10 @@ def create_pipeline(
     call_id=None,
     session_factory=None,
     audio_buffer: AudioBufferProcessor | None = None,
-) -> PipelineTask:
+    tools: list[dict] | None = None,
+    variables: dict | None = None,
+    call_control_id: str | None = None,
+) -> tuple["PipelineTask", "ToolCallProcessor | None"]:
     """Build a Pipecat pipeline for a single call."""
 
     # STT — Deepgram streaming
@@ -58,14 +62,19 @@ def create_pipeline(
     async def on_stt_error(processor, error):
         logger.error("Deepgram STT error: %s", error)
 
+    # Inject tool definitions into system prompt if tools are configured
+    full_prompt = system_prompt
+    if tools:
+        full_prompt += format_tools_prompt(tools)
+
     # LLM — local vLLM via OpenAI-compatible API
     llm = OpenAILLMService(
         api_key="not-needed",
         base_url=settings.vllm_base_url,
         settings=OpenAILLMService.Settings(
             model=settings.vllm_model,
-            system_instruction=system_prompt,
-            max_tokens=150,
+            system_instruction=full_prompt,
+            max_tokens=200 if tools else 150,
             frequency_penalty=1.2,
         ),
     )
@@ -104,7 +113,8 @@ def create_pipeline(
     # Filter non-Spanish text from LLM output (Qwen Chinese code-switching fix)
     spanish_filter = SpanishOnlyFilter()
 
-    # Pipeline: audio in → STT → [user transcript] → context → LLM → [assistant transcript] → filter → TTS → audio out → [recording]
+    # Pipeline: audio in → STT → [user transcript] → context → LLM → [tool processor] → [assistant transcript] → filter → TTS → audio out → [recording]
+    tool_processor = None
     processors = [
         transport.input(),
         stt,
@@ -116,8 +126,18 @@ def create_pipeline(
         user_aggregator,
         llm,
     ])
+    if tools:
+        tool_processor = ToolCallProcessor(
+            tools=tools,
+            tool_executor=ToolExecutor(),
+            context=context,
+            llm=llm,
+            variables=variables,
+            call_control_id=call_control_id,
+        )
+        processors.append(tool_processor)
     if call_id and session_factory:
-        # Assistant capture between LLM and filter (catches LLMTextFrame + LLMFullResponseEndFrame)
+        # Assistant capture AFTER tool processor — captures spoken text, not raw tool JSON
         processors.append(TranscriptCapture(call_id=call_id, session_factory=session_factory))
     processors.extend([
         spanish_filter,
@@ -140,4 +160,4 @@ def create_pipeline(
         ),
     )
 
-    return task
+    return task, tool_processor

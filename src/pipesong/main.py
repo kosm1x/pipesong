@@ -18,6 +18,7 @@ from pipesong.models.call import Call
 from pipesong.pipeline import create_pipeline
 from pipesong.services.database import async_session, engine, init_db
 from pipesong.services.storage import get_minio_client, upload_recording_async
+from pipesong.services.webhooks import fire_webhook
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("pipesong")
@@ -40,10 +41,12 @@ app = FastAPI(title="Pipesong", version="0.1.0", lifespan=lifespan)
 
 from pipesong.api.agents import router as agents_router
 from pipesong.api.calls import router as calls_router
+from pipesong.api.outbound import router as outbound_router
 from pipesong.api.telnyx import router as telnyx_router
 
 app.include_router(agents_router)
 app.include_router(calls_router)
+app.include_router(outbound_router)
 app.include_router(telnyx_router)
 
 
@@ -55,9 +58,17 @@ async def health():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    call_id = uuid.uuid4()
+
+    # Outbound calls pass call_id and agent_id as query params
+    query_call_id = websocket.query_params.get("call_id")
+    query_agent_id = websocket.query_params.get("agent_id")
+    call_id = uuid.UUID(query_call_id) if query_call_id else uuid.uuid4()
+    is_outbound = bool(query_call_id)
+
     recorded_audio = {}
-    logger.info("WebSocket connected — call_id=%s", call_id)
+    agent_webhook_url = None
+    agent_webhook_secret = None
+    logger.info("WebSocket connected — call_id=%s outbound=%s", call_id, is_outbound)
 
     try:
         from pipecat.pipeline.runner import PipelineRunner
@@ -86,31 +97,60 @@ async def websocket_endpoint(websocket: WebSocket):
         async with async_session() as session:
             from sqlalchemy import select
 
-            result = await session.execute(
-                select(Agent).where(Agent.phone_number == to_number)
-            )
-            agent = result.scalar_one_or_none()
-            if not agent:
-                result = await session.execute(select(Agent).limit(1))
+            if is_outbound and query_agent_id:
+                # Outbound: agent_id provided via query param, call record already exists
+                agent = await session.get(Agent, uuid.UUID(query_agent_id))
+            else:
+                # Inbound: look up by phone number
+                result = await session.execute(
+                    select(Agent).where(Agent.phone_number == to_number, Agent.is_active == True)  # noqa: E712
+                )
                 agent = result.scalar_one_or_none()
-                if agent:
-                    logger.warning(
-                        "Call %s: no agent for %s, falling back to '%s'",
-                        call_id, to_number, agent.name,
-                    )
+                if not agent:
+                    result = await session.execute(select(Agent).where(Agent.is_active == True).limit(1))  # noqa: E712
+                    agent = result.scalar_one_or_none()
+                    if agent:
+                        logger.warning(
+                            "Call %s: no agent for %s, falling back to '%s'",
+                            call_id, to_number, agent.name,
+                        )
+
             if not agent:
-                logger.error("No agent found for %s and no fallback available", to_number)
+                logger.error("No agent found for call %s", call_id)
                 await websocket.close()
                 return
 
-            call = Call(id=call_id, agent_id=agent.id, from_number=from_number, to_number=to_number)
-            session.add(call)
-            await session.commit()
+            if not is_outbound:
+                call = Call(id=call_id, agent_id=agent.id, from_number=from_number, to_number=to_number)
+                session.add(call)
+                await session.commit()
 
             agent_prompt = agent.system_prompt
             agent_voice = agent.voice
             agent_language = agent.language
             agent_disclosure = agent.disclosure_message
+            agent_tools = agent.tools or []
+            agent_variables = agent.variables or {}
+            agent_webhook_url = agent.webhook_url
+            agent_webhook_secret = agent.webhook_secret
+
+        # Fire call_started webhook
+        if agent_webhook_url:
+            asyncio.create_task(fire_webhook(
+                agent_webhook_url, agent_webhook_secret, "call_started",
+                {"call_id": str(call_id), "agent_id": str(agent.id),
+                 "from_number": from_number, "to_number": to_number},
+            ))
+
+        # Variable substitution — merge agent variables with per-call context
+        call_vars = {
+            **agent_variables,
+            "from_number": from_number,
+            "to_number": to_number,
+            "call_id": str(call_id),
+        }
+        for key, value in call_vars.items():
+            agent_prompt = agent_prompt.replace(f"{{{{{key}}}}}", str(value))
 
         logger.info("Call %s: agent=%s from=%s to=%s", call_id, agent.name, from_number, to_number)
 
@@ -146,7 +186,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
         await audio_buffer.start_recording()
 
-        task = create_pipeline(
+        task, tool_processor = create_pipeline(
             transport=transport,
             system_prompt=agent_prompt,
             language=agent_language,
@@ -154,7 +194,12 @@ async def websocket_endpoint(websocket: WebSocket):
             call_id=call_id,
             session_factory=async_session,
             audio_buffer=audio_buffer,
+            tools=agent_tools if agent_tools else None,
+            variables=call_vars,
+            call_control_id=call_control_id,
         )
+        if tool_processor:
+            tool_processor.set_task(task)
 
         # Recording disclosure (legal requirement — Mexican telecom law)
         from pipecat.frames.frames import TTSSpeakFrame
@@ -209,6 +254,29 @@ async def websocket_endpoint(websocket: WebSocket):
                         await session.commit()
             except Exception as e:
                 logger.error("Call %s: failed to upload recording — %s", call_id, e)
+
+        # Fire call_ended webhook
+        if agent_webhook_url:
+            try:
+                from pipesong.models.call import Transcript
+
+                async with async_session() as session:
+                    from sqlalchemy import select
+
+                    result = await session.execute(
+                        select(Transcript).where(Transcript.call_id == call_id).order_by(Transcript.created_at)
+                    )
+                    transcript_list = [{"role": t.role, "content": t.content} for t in result.scalars()]
+
+                asyncio.create_task(fire_webhook(
+                    agent_webhook_url, agent_webhook_secret, "call_ended",
+                    {"call_id": str(call_id), "agent_id": str(agent.id),
+                     "from_number": from_number, "to_number": to_number,
+                     "duration_seconds": call.duration_seconds if call else None,
+                     "transcript": transcript_list},
+                ))
+            except Exception as e:
+                logger.error("Call %s: failed to fire call_ended webhook — %s", call_id, e)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, String, Text
+from sqlalchemy import Boolean, DateTime, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pipesong.services.database import Base
@@ -17,4 +17,10 @@ class Agent(Base):
     voice: Mapped[str] = mapped_column(String(50), default="em_alex")
     phone_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
     disclosure_message: Mapped[str] = mapped_column(Text)
+    tools: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
+    webhook_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    webhook_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    variables: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
+    max_call_duration: Mapped[int] = mapped_column(Integer, default=600)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

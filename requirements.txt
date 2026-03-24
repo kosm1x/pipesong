@@ -13,6 +13,9 @@ alembic==1.15.2
 # Object storage
 minio==7.2.15
 
+# HTTP client (tool execution, webhooks)
+httpx==0.28.1
+
 # Config
 python-dotenv==1.1.0
 pydantic-settings==2.9.1
