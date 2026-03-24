@@ -33,13 +33,13 @@ POST /agents
 
 ## Why Not Retell AI?
 
-| | Retell AI | Pipesong |
-|---|---|---|
-| Cost at 120K min/mo | $8,400-36,000 | ~$2,500 |
-| Per minute | $0.07-0.30 | ~$0.02-0.03 |
-| Response latency (p50) | ~600ms-1.5s | **~830ms** (under 1s target achieved) |
-| Data | Their cloud | Your servers |
-| Vendor lock-in | Yes | No |
+|                        | Retell AI     | Pipesong                              |
+| ---------------------- | ------------- | ------------------------------------- |
+| Cost at 120K min/mo    | $8,400-36,000 | ~$2,500                               |
+| Per minute             | $0.07-0.30    | ~$0.02-0.03                           |
+| Response latency (p50) | ~600ms-1.5s   | **~830ms** (under 1s target achieved) |
+| Data                   | Their cloud   | Your servers                          |
+| Vendor lock-in         | Yes           | No                                    |
 
 Savings come from running LLM and TTS locally. STT stays on Deepgram (local Whisper costs the same but adds 500-1000ms latency).
 
@@ -64,15 +64,15 @@ Storage: PostgreSQL (agents, calls, transcripts) + MinIO (recordings)
 
 ## Core Stack
 
-| Component | Technology | Measured Performance |
-|---|---|---|
-| Pipeline | [Pipecat 0.0.106](https://github.com/pipecat-ai/pipecat) | Telnyx WebSocket serializer, Smart Turn v3 |
-| STT | [Deepgram Nova-3](https://deepgram.com) | 234-269ms TTFB, Spanish streaming |
-| LLM | [vLLM 0.6.6](https://github.com/vllm-project/vllm) + Qwen 2.5 7B AWQ | 118-130ms TTFB |
-| TTS | [Kokoro](https://github.com/hexgrad/kokoro) `em_alex` | **389-554ms TTFB** (clause-split optimization) |
-| Turn detection | Pipecat Smart Turn v3 | Audio-based, working on real calls |
-| Telephony | [Telnyx](https://telnyx.com) | +12678840093 (US), $1/month, TeXML WebSocket |
-| VAD | Silero VAD | CPU, <10ms |
+| Component      | Technology                                                           | Measured Performance                           |
+| -------------- | -------------------------------------------------------------------- | ---------------------------------------------- |
+| Pipeline       | [Pipecat 0.0.106](https://github.com/pipecat-ai/pipecat)             | Telnyx WebSocket serializer, Smart Turn v3     |
+| STT            | [Deepgram Nova-3](https://deepgram.com)                              | 234-269ms TTFB, Spanish streaming              |
+| LLM            | [vLLM 0.6.6](https://github.com/vllm-project/vllm) + Qwen 2.5 7B AWQ | 118-130ms TTFB                                 |
+| TTS            | [Kokoro](https://github.com/hexgrad/kokoro) `em_alex`                | **389-554ms TTFB** (clause-split optimization) |
+| Turn detection | Pipecat Smart Turn v3                                                | Audio-based, working on real calls             |
+| Telephony      | [Telnyx](https://telnyx.com)                                         | +12678840093 (US), $1/month, TeXML WebSocket   |
+| VAD            | Silero VAD                                                           | CPU, <10ms                                     |
 
 ## Quick Start
 
@@ -104,25 +104,25 @@ curl -X POST http://localhost:8080/agents \
 
 ## Roadmap
 
-| Phase | What | Status |
-|---|---|---|
-| 0 | Validate LLM, TTS, turn detector in Spanish | **Done** |
-| 1 | First phone call with AI agent | **Done** — disclosure + transcript + recording + STT error logging |
-| 2 | Multi-agent routing, tools, webhooks | Not started |
-| 3 | Knowledge base (RAG) | Not started |
-| 4 | Latency optimization, conversation flows | Not started |
-| 5 | Call analysis, monitoring, Grafana | Not started |
-| 6 | Scale hardening, batch calling, load testing | Not started |
+| Phase | What                                         | Status                                                                                            |
+| ----- | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| 0     | Validate LLM, TTS, turn detector in Spanish  | **Done**                                                                                          |
+| 1     | First phone call with AI agent               | **Done** — disclosure + transcript + recording + STT error logging                                |
+| 2     | Multi-agent routing, tools, webhooks         | **Done** — tool calling + webhooks (HMAC) + outbound calls + end_call/transfer_call + audit fixes |
+| 3     | Knowledge base (RAG)                         | Not started                                                                                       |
+| 4     | Latency optimization, conversation flows     | Not started                                                                                       |
+| 5     | Call analysis, monitoring, Grafana           | Not started                                                                                       |
+| 6     | Scale hardening, batch calling, load testing | Not started                                                                                       |
 
 **Total: 16-21 weeks.** See [PLAN.md](PLAN.md) for full details, [PROGRESS.md](docs/PROGRESS.md) for activity tracking.
 
 ## Known Issues
 
-| Issue | Status | Impact |
-|---|---|---|
-| Kokoro TTS latency | **Solved** | Comma→period trick: 2.3s → 450ms |
-| Qwen 2.5 Chinese code-switching | Mitigated | SpanishOnlyFilter strips CJK + fixes spaces |
-| Kokoro prosody (pauses at punctuation) | Open | Minor — pronunciation good, pacing needs tuning |
+| Issue                                  | Status     | Impact                                          |
+| -------------------------------------- | ---------- | ----------------------------------------------- |
+| Kokoro TTS latency                     | **Solved** | Comma→period trick: 2.3s → 450ms                |
+| Qwen 2.5 Chinese code-switching        | Mitigated  | SpanishOnlyFilter strips CJK + fixes spaces     |
+| Kokoro prosody (pauses at punctuation) | Open       | Minor — pronunciation good, pacing needs tuning |
 
 ## License
 
