@@ -11,10 +11,20 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, WebSocket
+from pipecat.frames.frames import TTSSpeakFrame
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
+from pipecat.runner.utils import parse_telephony_websocket
+from pipecat.serializers.telnyx import TelnyxFrameSerializer
+from pipecat.transports.websocket.fastapi import (
+    FastAPIWebsocketParams,
+    FastAPIWebsocketTransport,
+)
+from sqlalchemy import select
 
 from pipesong.config import settings
 from pipesong.models.agent import Agent
-from pipesong.models.call import Call
+from pipesong.models.call import Call, Transcript
 from pipesong.pipeline import create_pipeline
 from pipesong.services.database import async_session, engine, init_db
 from pipesong.services.storage import get_minio_client, upload_recording_async
@@ -96,14 +106,6 @@ async def websocket_endpoint(websocket: WebSocket):
     logger.info("WebSocket connected — call_id=%s outbound=%s", call_id, is_outbound)
 
     try:
-        from pipecat.pipeline.runner import PipelineRunner
-        from pipecat.runner.utils import parse_telephony_websocket
-        from pipecat.serializers.telnyx import TelnyxFrameSerializer
-        from pipecat.transports.websocket.fastapi import (
-            FastAPIWebsocketParams,
-            FastAPIWebsocketTransport,
-        )
-
         transport_type, call_data = await parse_telephony_websocket(websocket)
         logger.info("Telnyx parsed: type=%s data=%s", transport_type, call_data)
 
@@ -120,8 +122,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
         # Look up agent
         async with async_session() as session:
-            from sqlalchemy import select
-
             if is_outbound and query_agent_id:
                 # Outbound: agent_id provided via query param, call record already exists
                 agent = await session.get(Agent, uuid.UUID(query_agent_id))
@@ -150,6 +150,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 session.add(call)
                 await session.commit()
 
+            agent_name = agent.name
+            agent_id = agent.id
             agent_prompt = agent.system_prompt
             agent_voice = agent.voice
             agent_language = agent.language
@@ -164,7 +166,7 @@ async def websocket_endpoint(websocket: WebSocket):
         if agent_webhook_url:
             _create_tracked_task(fire_webhook(
                 agent_webhook_url, agent_webhook_secret, "call_started",
-                {"call_id": str(call_id), "agent_id": str(agent.id),
+                {"call_id": str(call_id), "agent_id": str(agent_id),
                  "from_number": from_number, "to_number": to_number},
             ))
 
@@ -178,7 +180,7 @@ async def websocket_endpoint(websocket: WebSocket):
         for key, value in call_vars.items():
             agent_prompt = agent_prompt.replace(f"{{{{{key}}}}}", str(value))
 
-        logger.info("Call %s: agent=%s from=%s to=%s", call_id, agent.name, from_number, to_number)
+        logger.info("Call %s: agent=%s from=%s to=%s", call_id, agent_name, from_number, to_number)
 
         serializer = TelnyxFrameSerializer(
             stream_id=stream_id,
@@ -199,8 +201,6 @@ async def websocket_endpoint(websocket: WebSocket):
         )
 
         # Audio recording buffer
-        from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
-
         audio_buffer = AudioBufferProcessor(user_continuous_stream=True)
 
         @audio_buffer.event_handler("on_audio_data")
@@ -228,8 +228,6 @@ async def websocket_endpoint(websocket: WebSocket):
             tool_processor.set_task(task)
 
         # Recording disclosure (legal requirement — Mexican telecom law)
-        from pipecat.frames.frames import TTSSpeakFrame
-
         disclosure_text = agent_disclosure or settings.disclosure_text
         await task.queue_frame(TTSSpeakFrame(text=disclosure_text, append_to_context=False))
 
@@ -288,11 +286,7 @@ async def websocket_endpoint(websocket: WebSocket):
         # Fire call_ended webhook
         if agent_webhook_url:
             try:
-                from pipesong.models.call import Transcript
-
                 async with async_session() as session:
-                    from sqlalchemy import select
-
                     result = await session.execute(
                         select(Transcript).where(Transcript.call_id == call_id).order_by(Transcript.created_at)
                     )
@@ -300,7 +294,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 _create_tracked_task(fire_webhook(
                     agent_webhook_url, agent_webhook_secret, "call_ended",
-                    {"call_id": str(call_id), "agent_id": str(agent.id),
+                    {"call_id": str(call_id), "agent_id": str(agent_id),
                      "from_number": from_number, "to_number": to_number,
                      "duration_seconds": call.duration_seconds if call else None,
                      "transcript": transcript_list},
