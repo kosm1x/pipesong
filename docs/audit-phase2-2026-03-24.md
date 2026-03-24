@@ -33,20 +33,79 @@ Phase 2 adds prompt-based tool calling, webhooks, outbound calls, and agent mode
 | L4  | Reliability  | **Low**      | processors.py     | `TOOL_CALL_NATIVE_RE` matches any `[a-z_]+` before `{...}`. Could false-positive on text like `información{"key": "val"}` (unlikely but possible).                                         | `OPEN`                                                                                                                                  |
 | L5  | Quality      | **Low**      | Project-wide      | Zero test coverage. No test files exist.                                                                                                                                                   | `OPEN` — Phase 2 was rapid prototyping                                                                                                  |
 
-## Recommended Fix Priority
+## Deploy Checklist
+
+Steps required when deploying to a new or existing server. Run these after `rsync` + server restart.
+
+### Database Migrations
+
+```sql
+-- Phase 2 agent model expansion
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS tools JSONB DEFAULT '[]';
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS webhook_url VARCHAR(500);
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS webhook_secret VARCHAR(255);
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS variables JSONB DEFAULT '{}';
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS max_call_duration INTEGER DEFAULT 600;
+ALTER TABLE agents ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+-- Phase 2 call model expansion
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS direction VARCHAR(10) DEFAULT 'inbound';
+ALTER TABLE calls ADD COLUMN IF NOT EXISTS call_control_id VARCHAR(255);
+
+-- Phase 1 fix (already applied on TensorDock, needed for fresh installs)
+ALTER TABLE transcripts ALTER COLUMN timestamp_ms TYPE BIGINT;
+```
+
+### Environment Variables (.env)
+
+```bash
+# API authentication (C4) — all endpoints require Bearer token when set
+API_KEY=<generate-a-random-secret>
+
+# Telnyx webhook verification (C5) — must match ?token= in Telnyx dashboard webhook URL
+TELNYX_WEBHOOK_SECRET=<generate-a-random-secret>
+
+# Outbound calls — Call Control App ID (not TeXML App ID)
+TELNYX_CONNECTION_ID=2922421930940171353
+```
+
+### Telnyx Dashboard Configuration
+
+1. **Webhook URL** — Update the TeXML app "Pipesong" voice_url to include the secret token:
+   `http://<SERVER_IP>:8080/telnyx/webhook?token=<TELNYX_WEBHOOK_SECRET>`
+
+2. **Outbound Voice Profile** — Must have:
+   - At least 1 connection linked (TeXML app or Call Control app)
+   - Destination countries whitelisted (US, CA, MX)
+   - Set via API: `PATCH /v2/texml_applications/{id}` with `{"outbound": {"outbound_voice_profile_id": "<profile_id>"}}`
+
+3. **Call Control App** — "Pipesong Outbound" (ID: `2922421930940171353`) must exist with:
+   - `webhook_event_url` pointing to `http://<SERVER_IP>:8080/telnyx/webhook?token=<secret>`
+   - `outbound_voice_profile_id` set
+
+### Python Dependencies
+
+```bash
+pip install httpx==0.28.1  # new in Phase 2
+```
+
+### Process Management
+
+Use `screen` for persistence (nohup/setsid unreliable on TensorDock):
+
+```bash
+screen -dmS pipesong bash -c 'cd /home/user/pipesong && PYTHONPATH=src python -m uvicorn pipesong.main:app --host 0.0.0.0 --port 8080 > /tmp/pipesong.log 2>&1'
+```
+
+## Remaining Fix Priority
 
 ### Before Production (Phase 6)
 
-- **C3**: Exclude `webhook_secret` from `AgentResponse` (use `model_fields` exclude or separate response model)
-- **C4**: Add API key authentication middleware
-- **C5**: Verify Telnyx webhook signatures
 - **H5**: Sanitize tool results before injecting into LLM context (strip control characters, limit length)
 - **H6**: Fix `_substitute` to only do one-pass replacement with `{{key}}` format
 
 ### Before Scale Testing (Phase 4-5)
 
-- **C1**: Replace `pending_outbound` dict with Redis or DB-backed lookup with TTL
-- **C2**: Fix regex to handle nested JSON (use `json.loads` on the full response with progressive parsing, not regex)
 - **H1**: Enforce `max_call_duration` with `asyncio.wait_for` or timer task
 - **H3**: Share `httpx.AsyncClient` across tool calls (create in `ToolExecutor.__init__`, close on shutdown)
 - **H4**: Cap LLM context at N messages, trim oldest when exceeded
