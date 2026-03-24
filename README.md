@@ -6,11 +6,11 @@ A cost-efficient, low-latency voice AI engine for handling hundreds to thousands
 
 ## Current Status
 
-**Phase 1 — First phone conversation achieved (2026-03-23).**
+**Phase 1 — Voice pipeline working with sub-second latency (2026-03-24).**
 
-A real caller dialed in, spoke Spanish with the AI agent for ~10 turns, troubleshot an internet connection problem (router reset), and said goodbye. Full pipeline working end-to-end.
+Real phone conversations in Spanish. ~10-turn tech support calls completing naturally. Audit fixes applied — latency optimized from 2.5s to ~830ms.
 
-Measured latency: Deepgram STT 220ms + Qwen LLM 110ms + Kokoro TTS 800-1600ms.
+Measured latency: Deepgram STT 260ms + Qwen LLM 120ms + Kokoro TTS 450ms = **~830ms total**.
 
 See [PROGRESS.md](docs/PROGRESS.md) for detailed status.
 
@@ -37,7 +37,7 @@ POST /agents
 |---|---|---|
 | Cost at 120K min/mo | $8,400-36,000 | ~$2,500 |
 | Per minute | $0.07-0.30 | ~$0.02-0.03 |
-| Response latency (p50) | ~600ms-1.5s | ~1-2s (unoptimized, Phase 4 targets <1s) |
+| Response latency (p50) | ~600ms-1.5s | **~830ms** (under 1s target achieved) |
 | Data | Their cloud | Your servers |
 | Vendor lock-in | Yes | No |
 
@@ -65,9 +65,9 @@ Storage: PostgreSQL (agents, calls, transcripts) + MinIO (recordings)
 | Component | Technology | Measured Performance |
 |---|---|---|
 | Pipeline | [Pipecat 0.0.106](https://github.com/pipecat-ai/pipecat) | Telnyx WebSocket serializer, Smart Turn v3 |
-| STT | [Deepgram Nova-3](https://deepgram.com) | 220-270ms TTFB, Spanish streaming |
-| LLM | [vLLM 0.6.6](https://github.com/vllm-project/vllm) + Qwen 2.5 7B AWQ | 110ms TTFB, 130ms @20 concurrent |
-| TTS | [Kokoro](https://github.com/hexgrad/kokoro) `em_alex` | 115ms standalone, 800-1600ms in pipeline |
+| STT | [Deepgram Nova-3](https://deepgram.com) | 234-269ms TTFB, Spanish streaming |
+| LLM | [vLLM 0.6.6](https://github.com/vllm-project/vllm) + Qwen 2.5 7B AWQ | 118-130ms TTFB |
+| TTS | [Kokoro](https://github.com/hexgrad/kokoro) `em_alex` | **389-554ms TTFB** (clause-split optimization) |
 | Turn detection | Pipecat Smart Turn v3 | Audio-based, working on real calls |
 | Telephony | [Telnyx](https://telnyx.com) | +12678840093 (US), $1/month, TeXML WebSocket |
 | VAD | Silero VAD | CPU, <10ms |
@@ -105,7 +105,7 @@ curl -X POST http://localhost:8080/agents \
 | Phase | What | Status |
 |---|---|---|
 | 0 | Validate LLM, TTS, turn detector in Spanish | **Done** |
-| 1 | First phone call with AI agent | **60%** — conversation works, storage pending |
+| 1 | First phone call with AI agent | **75%** — conversation + latency solved, storage pending |
 | 2 | Multi-agent routing, tools, webhooks | Not started |
 | 3 | Knowledge base (RAG) | Not started |
 | 4 | Latency optimization, conversation flows | Not started |
@@ -118,9 +118,10 @@ curl -X POST http://localhost:8080/agents \
 
 | Issue | Status | Impact |
 |---|---|---|
-| Kokoro TTS latency in pipeline (800-1600ms vs 115ms standalone) | Open | Main latency bottleneck |
-| Qwen 2.5 switches to Chinese mid-response | Mitigated | SpanishOnlyFilter strips CJK before TTS |
-| No call recording or transcript persistence yet | Phase 1 remaining | Data not stored after calls |
+| Kokoro TTS latency | **Solved** | Comma→period trick: 2.3s → 450ms |
+| Qwen 2.5 Chinese code-switching | Mitigated | SpanishOnlyFilter strips CJK + fixes spaces |
+| Kokoro prosody (pauses at punctuation) | Open | Minor — pronunciation good, pacing needs tuning |
+| No call recording or transcript persistence | Phase 1 remaining | Data not stored after calls |
 | No recording disclosure plays | Phase 1 remaining | Legal requirement for Mexico |
 
 ## License

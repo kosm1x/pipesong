@@ -1,13 +1,13 @@
 # Pipesong — Advance vs. Scope
 
-Last updated: 2026-03-23 07:00 UTC
+Last updated: 2026-03-24
 
 ## Overview
 
 | Phase | Scope | Status | Advance |
 |---|---|---|---|
 | **0 — Benchmarks** | Validate LLM, TTS, turn detection in Spanish | `DONE` | 100% |
-| **1 — First Call** | Pipeline + Telnyx + basic API + recording | `IN PROGRESS` | 60% |
+| **1 — First Call** | Pipeline + Telnyx + basic API + recording | `IN PROGRESS` | 75% |
 | **2 — Multi-Agent + Tools** | Agent config, routing, function calling, webhooks | `NOT STARTED` | 0% |
 | **3 — Knowledge Base** | RAG pipeline, pgvector, retrieval | `NOT STARTED` | 0% |
 | **4 — Latency + Flows** | Sentence streaming, caching, flow engine | `NOT STARTED` | 0% |
@@ -58,7 +58,7 @@ Last updated: 2026-03-23 07:00 UTC
 | **Infrastructure** | | | |
 | 1.1 | Docker Compose: PostgreSQL + MinIO | `DONE` | Running on TensorDock via docker-compose |
 | 1.2 | GPU server: vLLM (Qwen 2.5 7B AWQ) serving | `DONE` | Port 8000, clean pipesong-venv, TTFB 110ms |
-| 1.3 | GPU server: Kokoro TTS (em_alex) serving | `DONE` | Native in Pipecat (not Docker). TTFB 800-1600ms in pipeline (higher than standalone benchmark). |
+| 1.3 | GPU server: Kokoro TTS (em_alex) serving | `DONE` | Native in Pipecat. **TTFB 389-554ms** (down from 800-2353ms via comma→period clause splitting). |
 | 1.4 | GPU server: faster-whisper (large-v3-turbo) fallback | `NOT STARTED` | Not loaded yet |
 | 1.5 | Telnyx account: SIP trunk + first phone number | `DONE` | +12678840093 (US), TeXML app "Pipesong", webhook pointing to TensorDock |
 | **Pipeline** | | | |
@@ -216,9 +216,9 @@ Last updated: 2026-03-23 07:00 UTC
 | Milestone | Definition | Target Phase | Status |
 |---|---|---|---|
 | Models validated | LLM, TTS, turn detector pass Spanish benchmarks | 0 | `DONE` |
-| First call | AI answers phone, converses in Spanish, stores transcript | 1 | `PARTIAL` — conversation works, storage not yet |
+| First call | AI answers phone, converses in Spanish, stores transcript | 1 | `PARTIAL` — conversation works at <1s latency, storage pending |
 | Multi-agent | 5+ agents with KB handling calls | 3 | `NOT STARTED` |
-| Optimized | p50 <1,000ms over 100 test calls | 4 | `NOT STARTED` |
+| Optimized | p50 <1,000ms over 100 test calls | 4 | `EARLY` — ~830ms achieved in Phase 1, formal validation in Phase 4 |
 | Observable | Grafana live, post-call analysis working | 5 | `NOT STARTED` |
 | Production | 30 concurrent calls, overflow, batch complete | 6 | `NOT STARTED` |
 | Cost target | Operating at <$0.03/min all-in | 6 | `NOT STARTED` |
@@ -242,7 +242,11 @@ Last updated: 2026-03-23 07:00 UTC
 | 2026-03-23 | Custom voice generation | `OPEN` | Kokoro em_alex is placeholder. Need to generate custom Mexican Spanish voices (post-Phase 1). |
 | 2026-03-23 | First phone conversation achieved | `INFO` | Full conversation: greeting → problem diagnosis → router reset → resolution → goodbye. ~10 turns. |
 | 2026-03-23 | Qwen Chinese code-switching | `MITIGATED` | Qwen 2.5 switches to Chinese mid-response. SpanishOnlyFilter strips CJK before TTS. System prompt says "NUNCA uses otro idioma." Underlying issue: model weakness. |
-| 2026-03-23 | Kokoro TTS latency in pipeline | `OPEN` | Standalone benchmark: 115ms. In pipeline: 800-1600ms TTFB. Main latency bottleneck. Investigate in Phase 4. |
-| 2026-03-23 | Garbled Spanish pronunciation | `OPEN` | LLM outputs words joined together when CJK is stripped. Filter now replaces with spaces. Needs verification. |
-| 2026-03-23 | Pipecat v0.0.106 API changes | `INFO` | Many breaking changes from older docs: vad path, OpenAI import, Settings API, PipelineRunner, VAD on aggregator not transport. All resolved. |
-| 2026-03-23 | TensorDock GPU running | `INFO` | Instance running at $0.35/hr. Stop when done. |
+| 2026-03-23 | Kokoro TTS latency in pipeline | `RESOLVED` | Root cause: Pipecat SENTENCE mode buffers until period. Fix: comma→period trick in SpanishOnlyFilter. TTFB 800-2353ms → **389-554ms**. |
+| 2026-03-23 | Garbled Spanish pronunciation | `RESOLVED` | Space-fixing regex in SpanishOnlyFilter: inserts spaces before ¿¡, after .!?,;: and at camelCase boundaries. Combined with SENTENCE mode, pronunciation is good. |
+| 2026-03-24 | Audit fixes C1-C5, C9-C10 applied | `RESOLVED` | TTS mode configurable via env, hardcoded IP removed, engine.dispose on shutdown, agent fallback logged, DB pool tuned, async MinIO wrapper. |
+| 2026-03-24 | TextAggregationMode.WORD doesn't exist | `RESOLVED` | Only SENTENCE and TOKEN in Pipecat 0.0.106. Removed WORD from mode_map. |
+| 2026-03-24 | TOKEN mode: fast but unrecognizable | `INFO` | 123ms TTFB but Kokoro gets sub-word fragments ("Con", "esa", "pod") — too small for Spanish phonemization. SENTENCE + comma→period is the sweet spot. |
+| 2026-03-24 | Prosody refinement needed | `OPEN` | Kokoro needs slightly more pause after periods and commas. Tune voice speed or add silence frames. Minor polish. |
+| 2026-03-23 | Pipecat v0.0.106 API changes | `INFO` | Many breaking changes from older docs. All resolved. |
+| 2026-03-24 | TensorDock GPU running | `INFO` | Instance running at $0.35/hr. Stop when done. |
