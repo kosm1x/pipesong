@@ -1,11 +1,16 @@
 """Telnyx webhook handler — supports both TeXML (inbound) and Call Control (outbound) events."""
+import hashlib
+import hmac
 import logging
 
 import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
+from sqlalchemy import select
 
 from pipesong.config import settings
+from pipesong.models.call import Call
+from pipesong.services.database import async_session
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["telnyx"])
@@ -18,6 +23,13 @@ async def telnyx_webhook(request: Request):
     For inbound calls (TeXML): returns TeXML XML that streams audio to our WebSocket.
     For outbound calls (Call Control): handles call.answered by issuing stream_start.
     """
+    # Verify webhook secret if configured
+    if settings.telnyx_webhook_secret:
+        token = request.query_params.get("token", "")
+        if token != settings.telnyx_webhook_secret:
+            logger.warning("Telnyx webhook rejected: invalid token")
+            return {"error": "unauthorized"}, 401
+
     body = await request.json()
 
     # Call Control events have a "data" wrapper with "event_type"
@@ -30,7 +42,6 @@ async def telnyx_webhook(request: Request):
         logger.info("Telnyx call.hangup: %s", data.get("payload", {}).get("call_control_id", "?"))
         return {"ok": True}
     if event_type:
-        # Other Call Control events (call.initiated, etc.) — just ack
         logger.debug("Telnyx event: %s", event_type)
         return {"ok": True}
 
@@ -58,15 +69,20 @@ async def _handle_call_answered(data: dict) -> dict:
     payload = data.get("payload", {})
     call_control_id = payload.get("call_control_id", "")
 
-    # Look up pending outbound call to get the WebSocket URL with query params
-    from pipesong.api.outbound import pending_outbound
-
-    call_info = pending_outbound.pop(call_control_id, None)
-    if call_info:
-        ws_url = f"{settings.app_public_url}/ws?call_id={call_info['call_id']}&agent_id={call_info['agent_id']}"
-    else:
-        ws_url = f"{settings.app_public_url}/ws"
-        logger.warning("Outbound call answered but no pending record for %s", call_control_id)
+    # Look up outbound call from DB by call_control_id
+    ws_url = f"{settings.app_public_url}/ws"
+    try:
+        async with async_session() as session:
+            result = await session.execute(
+                select(Call).where(Call.call_control_id == call_control_id)
+            )
+            call = result.scalar_one_or_none()
+            if call:
+                ws_url = f"{settings.app_public_url}/ws?call_id={call.id}&agent_id={call.agent_id}"
+            else:
+                logger.warning("Outbound call answered but no DB record for call_control_id=%s", call_control_id[:20])
+    except Exception as e:
+        logger.error("Failed to look up outbound call: %s", e)
 
     # Issue stream_start command via Call Control API
     try:
@@ -83,7 +99,10 @@ async def _handle_call_answered(data: dict) -> dict:
                     "Content-Type": "application/json",
                 },
             )
-        logger.info("stream_start for %s: %s", call_control_id[:20], resp.status_code)
+        if resp.status_code >= 400:
+            logger.error("stream_start failed for %s: HTTP %s — %s", call_control_id[:20], resp.status_code, resp.text)
+        else:
+            logger.info("stream_start for %s: %s", call_control_id[:20], resp.status_code)
     except Exception as e:
         logger.error("stream_start failed for %s: %s", call_control_id[:20], e)
 

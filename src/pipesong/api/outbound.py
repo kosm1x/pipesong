@@ -19,9 +19,6 @@ from pipesong.services.database import get_session
 
 router = APIRouter(prefix="/calls", tags=["calls"])
 
-# In-memory store for pending outbound calls (call_control_id → call metadata)
-pending_outbound: dict[str, dict] = {}
-
 
 class OutboundCallCreate(BaseModel):
     agent_id: uuid.UUID
@@ -71,8 +68,6 @@ async def create_outbound_call(
                     "connection_id": settings.telnyx_connection_id,
                     "to": data.to_number,
                     "from": agent.phone_number,
-                    # Don't set stream_url here — streaming_start is issued on call.answered
-                    # to avoid duplicate WebSocket connections
                 },
                 headers={
                     "Authorization": f"Bearer {settings.telnyx_api_key}",
@@ -83,13 +78,11 @@ async def create_outbound_call(
             raise HTTPException(502, f"Telnyx error: {resp.text}")
 
         resp_data = resp.json().get("data", {})
-        call_control_id = resp_data.get("call_control_id", "")
+        telnyx_call_control_id = resp_data.get("call_control_id", "")
 
-        # Store pending outbound call info for webhook handler
-        pending_outbound[call_control_id] = {
-            "call_id": str(call_id),
-            "agent_id": str(agent.id),
-        }
+        # Store call_control_id in DB for webhook handler lookup
+        call.call_control_id = telnyx_call_control_id
+        await session.commit()
 
     except httpx.HTTPError as e:
         raise HTTPException(502, f"Failed to initiate call: {e}")

@@ -39,6 +39,20 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Pipesong", version="0.1.0", lifespan=lifespan)
 
+
+# API key auth middleware — skips /health, /ws, /telnyx/webhook (Telnyx needs unauthenticated access)
+@app.middleware("http")
+async def api_key_auth(request, call_next):
+    if settings.api_key:
+        path = request.url.path
+        if path not in ("/health", "/telnyx/webhook") and not path.startswith("/ws"):
+            auth = request.headers.get("authorization", "")
+            if auth != f"Bearer {settings.api_key}":
+                from fastapi.responses import JSONResponse
+                return JSONResponse(status_code=401, content={"detail": "Invalid or missing API key"})
+    return await call_next(request)
+
+
 from pipesong.api.agents import router as agents_router
 from pipesong.api.calls import router as calls_router
 from pipesong.api.outbound import router as outbound_router

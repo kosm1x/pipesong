@@ -52,7 +52,6 @@ class AgentResponse(BaseModel):
     disclosure_message: str
     tools: list[dict[str, Any]] | None
     webhook_url: str | None
-    webhook_secret: str | None
     variables: dict[str, Any] | None
     max_call_duration: int
     is_active: bool

@@ -19,6 +19,7 @@ class Call(Base):
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     recording_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     direction: Mapped[str] = mapped_column(String(10), default="inbound")
+    call_control_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="in_progress")
 
 

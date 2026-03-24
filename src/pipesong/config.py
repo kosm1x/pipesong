@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     minio_secret_key: str = "minioadmin"
     minio_bucket: str = "pipesong-recordings"
 
+    # API auth
+    api_key: str = ""  # if set, all API endpoints require Bearer token
+    telnyx_webhook_secret: str = ""  # shared secret for verifying Telnyx webhooks
+
     # App
     app_host: str = "0.0.0.0"
     app_port: int = 8080
