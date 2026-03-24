@@ -22,8 +22,10 @@ from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.tts_service import TextAggregationMode
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport
 
+from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
+
 from pipesong.config import settings
-from pipesong.processors import SpanishOnlyFilter
+from pipesong.processors import SpanishOnlyFilter, TranscriptCapture
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,9 @@ def create_pipeline(
     system_prompt: str,
     language: str = "es",
     voice: str = "em_alex",
+    call_id=None,
+    session_factory=None,
+    audio_buffer: AudioBufferProcessor | None = None,
 ) -> PipelineTask:
     """Build a Pipecat pipeline for a single call."""
 
@@ -48,6 +53,10 @@ def create_pipeline(
             interim_results=True,
         ),
     )
+
+    @stt.event_handler("on_error")
+    async def on_stt_error(processor, error):
+        logger.error("Deepgram STT error: %s", error)
 
     # LLM — local vLLM via OpenAI-compatible API
     llm = OpenAILLMService(
@@ -95,19 +104,31 @@ def create_pipeline(
     # Filter non-Spanish text from LLM output (Qwen Chinese code-switching fix)
     spanish_filter = SpanishOnlyFilter()
 
-    # Pipeline: audio in → STT → context → LLM → filter → TTS → audio out
-    pipeline = Pipeline(
-        [
-            transport.input(),
-            stt,
-            user_aggregator,
-            llm,
-            spanish_filter,
-            tts,
-            transport.output(),
-            assistant_aggregator,
-        ]
-    )
+    # Pipeline: audio in → STT → [user transcript] → context → LLM → [assistant transcript] → filter → TTS → audio out → [recording]
+    processors = [
+        transport.input(),
+        stt,
+    ]
+    if call_id and session_factory:
+        # User capture between STT and aggregator (catches TranscriptionFrame)
+        processors.append(TranscriptCapture(call_id=call_id, session_factory=session_factory))
+    processors.extend([
+        user_aggregator,
+        llm,
+    ])
+    if call_id and session_factory:
+        # Assistant capture between LLM and filter (catches LLMTextFrame + LLMFullResponseEndFrame)
+        processors.append(TranscriptCapture(call_id=call_id, session_factory=session_factory))
+    processors.extend([
+        spanish_filter,
+        tts,
+        transport.output(),
+    ])
+    if audio_buffer:
+        processors.append(audio_buffer)
+    processors.append(assistant_aggregator)
+
+    pipeline = Pipeline(processors)
 
     task = PipelineTask(
         pipeline,

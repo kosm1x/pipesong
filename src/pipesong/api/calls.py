@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -24,8 +25,8 @@ class CallResponse(BaseModel):
     agent_id: uuid.UUID
     from_number: str | None
     to_number: str | None
-    started_at: str
-    ended_at: str | None
+    started_at: datetime
+    ended_at: datetime | None
     duration_seconds: int | None
     recording_url: str | None
     status: str

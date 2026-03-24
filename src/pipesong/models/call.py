@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pipesong.services.database import Base
@@ -28,5 +28,5 @@ class Transcript(Base):
     call_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("calls.id"))
     role: Mapped[str] = mapped_column(String(20))  # 'user' or 'assistant'
     content: Mapped[str] = mapped_column(Text)
-    timestamp_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    timestamp_ms: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

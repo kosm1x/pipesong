@@ -1,9 +1,16 @@
 """Custom Pipecat frame processors for Pipesong."""
 import re
+import time
 import logging
 
-from pipecat.frames.frames import LLMTextFrame
+from pipecat.frames.frames import (
+    LLMFullResponseEndFrame,
+    LLMTextFrame,
+    TranscriptionFrame,
+)
 from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
+
+from pipesong.models.call import Transcript
 
 logger = logging.getLogger(__name__)
 
@@ -65,3 +72,52 @@ class SpanishOnlyFilter(FrameProcessor):
                 await self.push_frame(LLMTextFrame(text=text), direction)
         else:
             await self.push_frame(frame, direction)
+
+
+class TranscriptCapture(FrameProcessor):
+    """Captures user transcriptions and assistant responses to PostgreSQL.
+
+    Intercepts frames without consuming them — all frames pass through unchanged.
+    Place between LLM and SpanishOnlyFilter to capture raw LLM text.
+    """
+
+    def __init__(self, call_id, session_factory, **kwargs):
+        super().__init__(**kwargs)
+        self._call_id = call_id
+        self._session_factory = session_factory
+        self._assistant_buffer = ""
+        self._turn_start_ms = None
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, TranscriptionFrame) and frame.text:
+            await self._save_transcript("user", frame.text.strip())
+
+        elif isinstance(frame, LLMTextFrame) and frame.text:
+            if not self._assistant_buffer:
+                self._turn_start_ms = int(time.time() * 1000)
+            self._assistant_buffer += frame.text
+
+        elif isinstance(frame, LLMFullResponseEndFrame):
+            if self._assistant_buffer.strip():
+                await self._save_transcript(
+                    "assistant", self._assistant_buffer.strip(), self._turn_start_ms
+                )
+            self._assistant_buffer = ""
+            self._turn_start_ms = None
+
+        await self.push_frame(frame, direction)
+
+    async def _save_transcript(self, role: str, content: str, timestamp_ms: int | None = None):
+        try:
+            async with self._session_factory() as session:
+                session.add(Transcript(
+                    call_id=self._call_id,
+                    role=role,
+                    content=content,
+                    timestamp_ms=timestamp_ms or int(time.time() * 1000),
+                ))
+                await session.commit()
+        except Exception as e:
+            logger.error("TranscriptCapture: failed to save %s transcript: %s", role, e)

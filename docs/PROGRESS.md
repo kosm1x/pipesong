@@ -7,7 +7,7 @@ Last updated: 2026-03-24
 | Phase | Scope | Status | Advance |
 |---|---|---|---|
 | **0 — Benchmarks** | Validate LLM, TTS, turn detection in Spanish | `DONE` | 100% |
-| **1 — First Call** | Pipeline + Telnyx + basic API + recording | `IN PROGRESS` | 75% |
+| **1 — First Call** | Pipeline + Telnyx + basic API + recording | `DONE` | 100% |
 | **2 — Multi-Agent + Tools** | Agent config, routing, function calling, webhooks | `NOT STARTED` | 0% |
 | **3 — Knowledge Base** | RAG pipeline, pgvector, retrieval | `NOT STARTED` | 0% |
 | **4 — Latency + Flows** | Sentence streaming, caching, flow engine | `NOT STARTED` | 0% |
@@ -59,21 +59,21 @@ Last updated: 2026-03-24
 | 1.1 | Docker Compose: PostgreSQL + MinIO | `DONE` | Running on TensorDock via docker-compose |
 | 1.2 | GPU server: vLLM (Qwen 2.5 7B AWQ) serving | `DONE` | Port 8000, clean pipesong-venv, TTFB 110ms |
 | 1.3 | GPU server: Kokoro TTS (em_alex) serving | `DONE` | Native in Pipecat. **TTFB 389-554ms** (down from 800-2353ms via comma→period clause splitting). |
-| 1.4 | GPU server: faster-whisper (large-v3-turbo) fallback | `NOT STARTED` | Not loaded yet |
+| 1.4 | GPU server: faster-whisper (large-v3-turbo) fallback | `DEFERRED` | Error logging added. Hot-swap deferred to Phase 6. |
 | 1.5 | Telnyx account: SIP trunk + first phone number | `DONE` | +12678840093 (US), TeXML app "Pipesong", webhook pointing to TensorDock |
 | **Pipeline** | | | |
 | 1.6 | Pipecat app with Telnyx WebSocket serializer | `DONE` | FastAPI + parse_telephony_websocket() + TelnyxFrameSerializer |
 | 1.7 | Deepgram STT plugin (streaming) | `DONE` | Nova-3, Spanish, 220-270ms TTFB, interim results working |
-| 1.8 | STT fallback: switch to faster-whisper on Deepgram failure | `NOT STARTED` | |
+| 1.8 | STT fallback: switch to faster-whisper on Deepgram failure | `DEFERRED` | Error handler logs failures. Hot-swap deferred to Phase 6. |
 | 1.9 | LLM plugin → local vLLM (OpenAI-compatible) | `DONE` | Qwen 2.5 7B AWQ, 110ms TTFB, frequency_penalty=1.2 |
 | 1.10 | TTS plugin (Kokoro, streaming) | `DONE` | em_alex voice, language=es. SpanishOnlyFilter strips CJK from Qwen output. |
 | 1.11 | Silero VAD + turn detector | `DONE` | Pipecat Smart Turn v3 auto-loaded. Working on real calls. |
-| 1.12 | Recording disclosure: pre-recorded audio at call start | `NOT STARTED` | Legal requirement |
+| 1.12 | Recording disclosure: pre-recorded audio at call start | `DONE` | TTSSpeakFrame queued before pipeline run. append_to_context=False. |
 | **API + Storage** | | | |
 | 1.13 | PostgreSQL schema: agents, calls, transcripts | `DONE` | Timezone-aware columns. Agent + Call + Transcript models. |
 | 1.14 | FastAPI: `POST /agents`, `GET /agents`, `GET /calls` | `DONE` | Working. Agent created via API. |
-| 1.15 | Call recording pipeline: audio → MinIO | `NOT STARTED` | |
-| 1.16 | Transcript storage: Deepgram transcript → PostgreSQL | `NOT STARTED` | Call records created but transcripts not persisted yet. |
+| 1.15 | Call recording pipeline: audio → MinIO | `DONE` | AudioBufferProcessor → WAV → MinIO upload in finally block. |
+| 1.16 | Transcript storage: Deepgram transcript → PostgreSQL | `DONE` | TranscriptCapture processor saves user + assistant turns. |
 
 ---
 
@@ -216,7 +216,7 @@ Last updated: 2026-03-24
 | Milestone | Definition | Target Phase | Status |
 |---|---|---|---|
 | Models validated | LLM, TTS, turn detector pass Spanish benchmarks | 0 | `DONE` |
-| First call | AI answers phone, converses in Spanish, stores transcript | 1 | `PARTIAL` — conversation works at <1s latency, storage pending |
+| First call | AI answers phone, converses in Spanish, stores transcript | 1 | `DONE` — conversation + disclosure + transcript + recording |
 | Multi-agent | 5+ agents with KB handling calls | 3 | `NOT STARTED` |
 | Optimized | p50 <1,000ms over 100 test calls | 4 | `EARLY` — ~830ms achieved in Phase 1, formal validation in Phase 4 |
 | Observable | Grafana live, post-call analysis working | 5 | `NOT STARTED` |

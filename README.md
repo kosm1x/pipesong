@@ -6,9 +6,9 @@ A cost-efficient, low-latency voice AI engine for handling hundreds to thousands
 
 ## Current Status
 
-**Phase 1 — Voice pipeline working with sub-second latency (2026-03-24).**
+**Phase 1 COMPLETE — Voice pipeline fully operational (2026-03-24).**
 
-Real phone conversations in Spanish. ~10-turn tech support calls completing naturally. Audit fixes applied — latency optimized from 2.5s to ~830ms.
+Real phone conversations in Spanish. ~10-turn tech support calls completing naturally. Recording disclosure, transcript persistence, call recording, and STT error handling all working. Latency ~830ms.
 
 Measured latency: Deepgram STT 260ms + Qwen LLM 120ms + Kokoro TTS 450ms = **~830ms total**.
 
@@ -54,7 +54,9 @@ FastAPI + Pipecat Pipeline
   ├─ Deepgram STT (cloud, streaming, 220ms)
   ├─ Qwen 2.5 7B AWQ via vLLM (local GPU, 110ms TTFB)
   ├─ SpanishOnlyFilter (strips CJK from Qwen output)
-  ├─ Kokoro TTS em_alex (local, 800-1600ms in pipeline)
+  ├─ TranscriptCapture (user + assistant → PostgreSQL)
+  ├─ Kokoro TTS em_alex (local, 389-554ms in pipeline)
+  ├─ AudioBufferProcessor (call recording → WAV → MinIO)
   └─ Silero VAD + Pipecat Smart Turn v3
 
 Storage: PostgreSQL (agents, calls, transcripts) + MinIO (recordings)
@@ -105,7 +107,7 @@ curl -X POST http://localhost:8080/agents \
 | Phase | What | Status |
 |---|---|---|
 | 0 | Validate LLM, TTS, turn detector in Spanish | **Done** |
-| 1 | First phone call with AI agent | **75%** — conversation + latency solved, storage pending |
+| 1 | First phone call with AI agent | **Done** — disclosure + transcript + recording + STT error logging |
 | 2 | Multi-agent routing, tools, webhooks | Not started |
 | 3 | Knowledge base (RAG) | Not started |
 | 4 | Latency optimization, conversation flows | Not started |
@@ -121,8 +123,6 @@ curl -X POST http://localhost:8080/agents \
 | Kokoro TTS latency | **Solved** | Comma→period trick: 2.3s → 450ms |
 | Qwen 2.5 Chinese code-switching | Mitigated | SpanishOnlyFilter strips CJK + fixes spaces |
 | Kokoro prosody (pauses at punctuation) | Open | Minor — pronunciation good, pacing needs tuning |
-| No call recording or transcript persistence | Phase 1 remaining | Data not stored after calls |
-| No recording disclosure plays | Phase 1 remaining | Legal requirement for Mexico |
 
 ## License
 
