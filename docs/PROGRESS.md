@@ -8,7 +8,7 @@ Last updated: 2026-03-24
 | ----------------------------- | ------------------------------------------------- | ------------- | ------- |
 | **0 — Benchmarks**            | Validate LLM, TTS, turn detection in Spanish      | `DONE`        | 100%    |
 | **1 — First Call**            | Pipeline + Telnyx + basic API + recording         | `DONE`        | 100%    |
-| **2 — Multi-Agent + Tools**   | Agent config, routing, function calling, webhooks | `IN PROGRESS` | 90%     |
+| **2 — Multi-Agent + Tools**   | Agent config, routing, function calling, webhooks | `DONE`        | 100%    |
 | **3 — Knowledge Base**        | RAG pipeline, pgvector, retrieval                 | `NOT STARTED` | 0%      |
 | **4 — Latency + Flows**       | Sentence streaming, caching, flow engine          | `NOT STARTED` | 0%      |
 | **5 — Analysis + Monitoring** | Post-call analysis, Prometheus, Grafana           | `NOT STARTED` | 0%      |
@@ -95,7 +95,7 @@ Last updated: 2026-03-24
 | 2.7                  | HMAC signature on outgoing webhook requests                       | `DONE`     | HMAC-SHA256 in X-Pipesong-Signature header.                                                     |
 | 2.8                  | Built-in tools: end_call, transfer_call                           | `DONE`     | end_call: TTSSpeakFrame + EndFrame. transfer_call: Telnyx REST API.                             |
 | **Telephony**        |                                                                   |            |                                                                                                 |
-| 2.9                  | Outbound call API: `POST /calls/outbound`                         | `DONE`     | Telnyx TeXML API. WS query params for agent/call identification.                                |
+| 2.9                  | Outbound call API: `POST /calls/outbound`                         | `DONE`     | Telnyx Call Control API + streaming_start. Verified end-to-end.                                 |
 | 2.10                 | Cold call transfer via Telnyx REST API                            | `DONE`     | Via transfer_call built-in tool.                                                                |
 | 2.11                 | DTMF detection via WebSocket events                               | `DEFERRED` | Deferred to Phase 4 (conversation flows).                                                       |
 | **Webhooks**         |                                                                   |            |                                                                                                 |
