@@ -1,4 +1,9 @@
-"""Outbound call initiation via Telnyx TeXML API."""
+"""Outbound call initiation via Telnyx Call Control API.
+
+Flow: POST /calls/outbound → Telnyx dials recipient → on answer, Telnyx sends
+call.answered webhook → we issue stream_start to route audio to our WebSocket
+→ same Pipecat pipeline as inbound calls.
+"""
 import uuid
 from typing import Any
 
@@ -13,6 +18,9 @@ from pipesong.models.call import Call
 from pipesong.services.database import get_session
 
 router = APIRouter(prefix="/calls", tags=["calls"])
+
+# In-memory store for pending outbound calls (call_control_id → call metadata)
+pending_outbound: dict[str, dict] = {}
 
 
 class OutboundCallCreate(BaseModel):
@@ -54,26 +62,17 @@ async def create_outbound_call(
     session.add(call)
     await session.commit()
 
-    # Build WebSocket URL with query params for agent/call identification
-    ws_url = f"{settings.app_public_url}/ws?call_id={call_id}&agent_id={agent.id}"
-
-    texml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Connect>
-    <Stream url="{ws_url}" bidirectionalMode="rtp" />
-  </Connect>
-  <Pause length="600"/>
-</Response>"""
-
+    # Use Call Control API to initiate the call
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
-                f"https://api.telnyx.com/v2/texml/Accounts/{settings.telnyx_connection_id}/Calls",
+                "https://api.telnyx.com/v2/calls",
                 json={
-                    "To": data.to_number,
-                    "From": agent.phone_number,
-                    "Url": "inline",
-                    "TeXML": texml,
+                    "connection_id": settings.telnyx_connection_id,
+                    "to": data.to_number,
+                    "from": agent.phone_number,
+                    # Don't set stream_url here — streaming_start is issued on call.answered
+                    # to avoid duplicate WebSocket connections
                 },
                 headers={
                     "Authorization": f"Bearer {settings.telnyx_api_key}",
@@ -82,6 +81,16 @@ async def create_outbound_call(
             )
         if resp.status_code >= 400:
             raise HTTPException(502, f"Telnyx error: {resp.text}")
+
+        resp_data = resp.json().get("data", {})
+        call_control_id = resp_data.get("call_control_id", "")
+
+        # Store pending outbound call info for webhook handler
+        pending_outbound[call_control_id] = {
+            "call_id": str(call_id),
+            "agent_id": str(agent.id),
+        }
+
     except httpx.HTTPError as e:
         raise HTTPException(502, f"Failed to initiate call: {e}")
 
