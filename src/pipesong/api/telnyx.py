@@ -75,7 +75,8 @@ async def _handle_call_answered(data: dict) -> dict:
                 f"https://api.telnyx.com/v2/calls/{call_control_id}/actions/streaming_start",
                 json={
                     "stream_url": ws_url,
-                    "stream_track": "both_tracks",
+                    "stream_track": "inbound_track",
+                    "stream_bidirectional_mode": "rtp",
                 },
                 headers={
                     "Authorization": f"Bearer {settings.telnyx_api_key}",
