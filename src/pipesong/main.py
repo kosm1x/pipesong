@@ -23,6 +23,17 @@ from pipesong.services.webhooks import fire_webhook
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("pipesong")
 
+# Tracked background tasks (H2) — prevents GC of fire-and-forget coroutines
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _create_tracked_task(coro):
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    if len(_background_tasks) > 100:
+        logger.warning("High background task count: %d", len(_background_tasks))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -147,10 +158,11 @@ async def websocket_endpoint(websocket: WebSocket):
             agent_variables = agent.variables or {}
             agent_webhook_url = agent.webhook_url
             agent_webhook_secret = agent.webhook_secret
+            agent_max_duration = agent.max_call_duration or 600
 
         # Fire call_started webhook
         if agent_webhook_url:
-            asyncio.create_task(fire_webhook(
+            _create_tracked_task(fire_webhook(
                 agent_webhook_url, agent_webhook_secret, "call_started",
                 {"call_id": str(call_id), "agent_id": str(agent.id),
                  "from_number": from_number, "to_number": to_number},
@@ -227,8 +239,12 @@ async def websocket_endpoint(websocket: WebSocket):
             await task.cancel()
 
         runner = PipelineRunner()
-        logger.info("Call %s: pipeline running", call_id)
-        await runner.run(task)
+        logger.info("Call %s: pipeline running (max %ss)", call_id, agent_max_duration)
+        try:
+            await asyncio.wait_for(runner.run(task), timeout=agent_max_duration)
+        except asyncio.TimeoutError:
+            logger.warning("Call %s: max duration %ss reached, ending call", call_id, agent_max_duration)
+            await task.cancel()
         logger.info("Call %s: pipeline ended", call_id)
 
     except Exception as e:
@@ -282,7 +298,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     )
                     transcript_list = [{"role": t.role, "content": t.content} for t in result.scalars()]
 
-                asyncio.create_task(fire_webhook(
+                _create_tracked_task(fire_webhook(
                     agent_webhook_url, agent_webhook_secret, "call_ended",
                     {"call_id": str(call_id), "agent_id": str(agent.id),
                      "from_number": from_number, "to_number": to_number,

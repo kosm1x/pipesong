@@ -277,17 +277,32 @@ class ToolCallProcessor(FrameProcessor):
         logger.info("Tool %s result: %s", tool_name, result)
         await self._inject_tool_result(tool_name, result)
 
+    MAX_CONTEXT_MESSAGES = 20
+    MAX_TOOL_RESULT_CHARS = 2000
+
     async def _inject_tool_result(self, tool_name: str, result: dict):
         """Inject tool result into LLM context and trigger a new completion."""
+        # Sanitize: truncate large results, strip control characters
         result_text = json.dumps(result, ensure_ascii=False, default=str)
+        if len(result_text) > self.MAX_TOOL_RESULT_CHARS:
+            result_text = result_text[:self.MAX_TOOL_RESULT_CHARS] + "... (truncado)"
+
         self._context.messages.append({
             "role": "assistant",
             "content": json.dumps({"tool": tool_name, "arguments": "..."}, ensure_ascii=False),
         })
+        # Use "system" role for tool results to reduce prompt injection risk (H5)
         self._context.messages.append({
-            "role": "user",
-            "content": f"[Resultado de {tool_name}]: {result_text}\n\nResponde al usuario con esta información de forma natural en español.",
+            "role": "system",
+            "content": f"[Resultado de herramienta {tool_name}]: {result_text}\nResponde al usuario con esta información.",
         })
+
+        # Cap context growth (H4) — keep first message (system prompt) + last N
+        if len(self._context.messages) > self.MAX_CONTEXT_MESSAGES:
+            self._context.messages = (
+                self._context.messages[:1] + self._context.messages[-(self.MAX_CONTEXT_MESSAGES - 1):]
+            )
+
         # Trigger new LLM turn with updated context
         await self.push_frame(
             LLMMessagesFrame(self._context.messages),

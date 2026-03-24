@@ -18,12 +18,12 @@ Phase 2 adds prompt-based tool calling, webhooks, outbound calls, and agent mode
 | C3  | Security     | **Critical** | api/agents.py     | `webhook_secret` returned in `AgentResponse` — API exposes secrets in plaintext on GET requests.                                                                                           | **RESOLVED** — excluded from `AgentResponse` model                                                                                      |
 | C4  | Security     | **Critical** | All API files     | No API authentication on any endpoint. Anyone can create agents, initiate outbound calls, read transcripts.                                                                                | **RESOLVED** — Bearer token middleware, skips /health + /ws + /telnyx/webhook                                                           |
 | C5  | Security     | **Critical** | api/telnyx.py     | No Telnyx webhook signature verification. Forged `call.answered` events could trigger `streaming_start` to arbitrary URLs.                                                                 | **RESOLVED** — shared secret token verified via query param. Set TELNYX_WEBHOOK_SECRET + update Telnyx webhook URL to include `?token=` |
-| H1  | Reliability  | **High**     | main.py           | `max_call_duration` stored in agent model but never enforced. Calls can run indefinitely, consuming GPU/Deepgram resources.                                                                | `OPEN`                                                                                                                                  |
-| H2  | Reliability  | **High**     | main.py           | `asyncio.create_task` for webhook delivery — tasks are not tracked. At high volume, unfinished tasks accumulate.                                                                           | `OPEN`                                                                                                                                  |
-| H3  | Performance  | **High**     | services/tools.py | `httpx.AsyncClient` created per tool call (new TCP connection each time). Should use a shared client or connection pool.                                                                   | `OPEN`                                                                                                                                  |
-| H4  | Performance  | **High**     | processors.py     | LLM context grows unbounded during tool-heavy calls — 2 messages added per tool invocation (assistant tool call + user result). Long calls with many tools will hit context window limits. | `OPEN`                                                                                                                                  |
-| H5  | Security     | **High**     | processors.py     | Tool results injected as `"role": "user"` messages. External HTTP endpoints returning malicious content could manipulate LLM behavior (prompt injection via tool results).                 | `OPEN`                                                                                                                                  |
-| H6  | Reliability  | **High**     | services/tools.py | `_substitute()` does double-pass replacement — `{{key}}` then `{key}`. If a variable VALUE contains `{another_key}`, the second pass expands it, causing unintended substitution.          | `OPEN`                                                                                                                                  |
+| H1  | Reliability  | **High**     | main.py           | `max_call_duration` stored in agent model but never enforced. Calls can run indefinitely, consuming GPU/Deepgram resources.                                                                | **RESOLVED** — `asyncio.wait_for(runner.run(task), timeout=agent_max_duration)` with graceful cancel                                    |
+| H2  | Reliability  | **High**     | main.py           | `asyncio.create_task` for webhook delivery — tasks are not tracked. At high volume, unfinished tasks accumulate.                                                                           | **RESOLVED** — `_create_tracked_task()` with set tracking + done callback + warning at >100                                             |
+| H3  | Performance  | **High**     | services/tools.py | `httpx.AsyncClient` created per tool call (new TCP connection each time). Should use a shared client or connection pool.                                                                   | **RESOLVED** — shared `self._client` on ToolExecutor, per-request timeout override                                                      |
+| H4  | Performance  | **High**     | processors.py     | LLM context grows unbounded during tool-heavy calls — 2 messages added per tool invocation (assistant tool call + user result). Long calls with many tools will hit context window limits. | **RESOLVED** — capped at 20 messages, trims oldest (keeps system prompt)                                                                |
+| H5  | Security     | **High**     | processors.py     | Tool results injected as `"role": "user"` messages. External HTTP endpoints returning malicious content could manipulate LLM behavior (prompt injection via tool results).                 | **RESOLVED** — changed to `"role": "system"` + truncation at 2000 chars                                                                 |
+| H6  | Reliability  | **High**     | services/tools.py | `_substitute()` does double-pass replacement — `{{key}}` then `{key}`. If a variable VALUE contains `{another_key}`, the second pass expands it, causing unintended substitution.          | **RESOLVED** — split into `_substitute()` ({{key}} only) and `_substitute_path()` ({key} for URLs)                                      |
 | M1  | Reliability  | **Medium**   | api/telnyx.py     | `streaming_start` response status not checked properly. If Telnyx returns 4xx, outbound call connects but has no audio — user hears silence with no error feedback.                        | `OPEN`                                                                                                                                  |
 | M2  | Performance  | **Medium**   | main.py           | Outbound calls queue disclosure `TTSSpeakFrame` immediately. If the WebSocket stream isn't fully ready, disclosure audio may be lost or arrive late.                                       | `OPEN`                                                                                                                                  |
 | M3  | Performance  | **Medium**   | pipeline.py       | When no tools configured, assistant TranscriptCapture still placed after (nonexistent) ToolCallProcessor position. Harmless but asymmetric with user capture.                              | `OPEN`                                                                                                                                  |
@@ -99,23 +99,14 @@ screen -dmS pipesong bash -c 'cd /home/user/pipesong && PYTHONPATH=src python -m
 
 ## Remaining Fix Priority
 
-### Before Production (Phase 6)
+All Critical and High findings are resolved. Remaining items are Medium and Low.
 
-- **H5**: Sanitize tool results before injecting into LLM context (strip control characters, limit length)
-- **H6**: Fix `_substitute` to only do one-pass replacement with `{{key}}` format
+### Nice to Have (Phase 4+)
 
-### Before Scale Testing (Phase 4-5)
-
-- **H1**: Enforce `max_call_duration` with `asyncio.wait_for` or timer task
-- **H3**: Share `httpx.AsyncClient` across tool calls (create in `ToolExecutor.__init__`, close on shutdown)
-- **H4**: Cap LLM context at N messages, trim oldest when exceeded
-
-### Nice to Have
-
-- **H2**: Track webhook tasks with a set, log if > 100 pending
 - **M1**: Log warning if `streaming_start` returns non-200, notify user via TTS
 - **M2**: Add short delay before disclosure on outbound calls
-- **L1-L5**: Code cleanup pass
+- **M3**: Symmetric TranscriptCapture placement when no tools
+- **L1-L5**: Code cleanup pass (inline imports, detached instance, monotonic clock, native regex scope, test coverage)
 
 ## Latency Analysis
 

@@ -11,11 +11,18 @@ logger = logging.getLogger(__name__)
 class ToolExecutor:
     """Executes HTTP tool calls against configured endpoints."""
 
+    def __init__(self):
+        self._client = httpx.AsyncClient(timeout=30)
+
+    async def close(self):
+        await self._client.aclose()
+
     async def execute(
         self, tool_def: dict, arguments: dict, variables: dict | None = None
     ) -> dict[str, Any]:
         variables = variables or {}
-        url = self._substitute(tool_def["endpoint"], {**variables, **arguments})
+        url = self._substitute(tool_def["endpoint"], variables)
+        url = self._substitute_path(url, arguments)
         headers = {
             k: self._substitute(v, variables)
             for k, v in tool_def.get("headers", {}).items()
@@ -24,17 +31,16 @@ class ToolExecutor:
         timeout = tool_def.get("timeout_seconds", 10)
 
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                if method == "GET":
-                    resp = await client.get(url, headers=headers)
-                elif method == "POST":
-                    resp = await client.post(url, json=arguments, headers=headers)
-                elif method == "PUT":
-                    resp = await client.put(url, json=arguments, headers=headers)
-                elif method == "DELETE":
-                    resp = await client.delete(url, headers=headers)
-                else:
-                    return {"error": f"Unsupported method: {method}"}
+            if method == "GET":
+                resp = await self._client.get(url, headers=headers, timeout=timeout)
+            elif method == "POST":
+                resp = await self._client.post(url, json=arguments, headers=headers, timeout=timeout)
+            elif method == "PUT":
+                resp = await self._client.put(url, json=arguments, headers=headers, timeout=timeout)
+            elif method == "DELETE":
+                resp = await self._client.delete(url, headers=headers, timeout=timeout)
+            else:
+                return {"error": f"Unsupported method: {method}"}
 
             try:
                 data = resp.json()
@@ -53,10 +59,17 @@ class ToolExecutor:
 
     @staticmethod
     def _substitute(text: str, variables: dict) -> str:
+        """Replace {{key}} with value. Single pass only — no re-expansion."""
         for key, value in variables.items():
             text = text.replace(f"{{{{{key}}}}}", str(value))
-            text = text.replace(f"{{{key}}}", str(value))  # also {key} for URL path params
         return text
+
+    @staticmethod
+    def _substitute_path(url: str, arguments: dict) -> str:
+        """Replace {key} path params in URL with argument values."""
+        for key, value in arguments.items():
+            url = url.replace(f"{{{key}}}", str(value))
+        return url
 
 
 def format_tools_prompt(tools: list[dict]) -> str:
