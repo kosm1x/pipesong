@@ -130,8 +130,11 @@ class TranscriptCapture(FrameProcessor):
             logger.error("TranscriptCapture: failed to save %s transcript: %s", role, e)
 
 
-# Regex to find JSON tool call in LLM output
+# Regex patterns to find tool calls in LLM output
+# Pattern 1: Our specified format {"tool": "name", "arguments": {...}}
 TOOL_CALL_RE = re.compile(r'\{[^{}]*"tool"\s*:\s*"[^"]+"\s*,\s*"arguments"\s*:\s*\{[^}]*\}\s*\}')
+# Pattern 2: Qwen's native format: tool_name{"param": "value"} or tool_name({"param": "value"})
+TOOL_CALL_NATIVE_RE = re.compile(r'(end_call|transfer_call|[a-z_]+)\s*\(?\s*(\{[^}]+\})\s*\)?')
 
 FILLER_PHRASES = [
     "Un momento, estoy verificando.",
@@ -210,15 +213,30 @@ class ToolCallProcessor(FrameProcessor):
         await self.push_frame(frame, direction)
 
     def _parse_tool_call(self, text: str) -> dict | None:
+        # Try our specified format first: {"tool": "name", "arguments": {...}}
         match = TOOL_CALL_RE.search(text)
-        if not match:
-            return None
-        try:
-            parsed = json.loads(match.group())
-            if "tool" in parsed and "arguments" in parsed:
-                return parsed
-        except json.JSONDecodeError:
-            logger.warning("Tool call JSON parse failed: %s", match.group())
+        if match:
+            try:
+                parsed = json.loads(match.group())
+                if "tool" in parsed and "arguments" in parsed:
+                    return parsed
+            except json.JSONDecodeError:
+                logger.warning("Tool call JSON parse failed: %s", match.group())
+
+        # Try Qwen's native format: tool_name{"param": "value"}
+        match = TOOL_CALL_NATIVE_RE.search(text)
+        if match:
+            tool_name = match.group(1)
+            args_str = match.group(2)
+            # Only accept if it's a known tool
+            if tool_name in self._tools or tool_name in ("end_call", "transfer_call"):
+                try:
+                    arguments = json.loads(args_str)
+                    logger.info("Parsed Qwen-native tool call: %s(%s)", tool_name, arguments)
+                    return {"tool": tool_name, "arguments": arguments}
+                except json.JSONDecodeError:
+                    logger.warning("Native tool call JSON parse failed: %s", args_str)
+
         return None
 
     async def _execute_tool(self, tool_name: str, arguments: dict):

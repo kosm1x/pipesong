@@ -71,8 +71,13 @@ def format_tools_prompt(tools: list[dict]) -> str:
         "Cuando necesites usar una herramienta, responde ÚNICAMENTE con un JSON en este formato exacto:",
         '{"tool": "nombre_herramienta", "arguments": {"param1": "valor1"}}',
         "",
-        "NO agregues texto antes ni después del JSON cuando uses una herramienta.",
-        "Si NO necesitas una herramienta, responde normalmente en español.",
+        "REGLAS CRÍTICAS para herramientas:",
+        "- Tu respuesta ENTERA debe ser SOLO el JSON. Nada más.",
+        "- NO escribas texto antes o después del JSON.",
+        "- NO combines texto normal con una llamada a herramienta.",
+        "",
+        'Ejemplo correcto: {"tool": "end_call", "arguments": {"reason": "Gracias por llamar, hasta luego."}}',
+        'Ejemplo INCORRECTO: ¡De nada! end_call{"reason": "..."}',
         "",
     ]
 
