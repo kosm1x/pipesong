@@ -167,11 +167,12 @@ class RAGProcessor(FrameProcessor):
 
     async def _retrieve_and_inject(self, query: str):
         try:
+            import asyncio
             from pipesong.services.embeddings import embed
             from sqlalchemy import text as sql_text
 
             t0 = time.time()
-            query_vec = embed(query)
+            query_vec = await asyncio.to_thread(embed, query)
             embed_ms = (time.time() - t0) * 1000
 
             async with self._session_factory() as session:
@@ -200,12 +201,11 @@ class RAGProcessor(FrameProcessor):
                 clean_chunks = [self._sanitize_for_voice(c) for c in chunks]
                 context_text = "\n\n".join(clean_chunks)
                 rag_content = f"[KB] Usa esta información para responder. Sé breve y natural, como en una llamada telefónica:\n{context_text}"
-                # Remove previous RAG message in-place, then append new one
-                self._context._messages[:] = [
-                    m for m in self._context._messages
-                    if not (isinstance(m, dict) and str(m.get("content", "")).startswith("[KB] "))
-                ]
-                self._context.add_message({"role": "system", "content": rag_content})
+                # Remove previous RAG message, then append new one
+                current = self._context.get_messages()
+                filtered = [m for m in current if not str(m.get("content", "")).startswith("[KB] ")]
+                filtered.append({"role": "system", "content": rag_content})
+                self._context.set_messages(filtered)
                 logger.info(
                     "RAG: query='%s' → %d chunks (embed=%.0fms, query=%.0fms, total=%.0fms)",
                     query[:50], len(chunks), embed_ms, query_ms, total_ms,

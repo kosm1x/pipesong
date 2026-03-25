@@ -9,12 +9,15 @@ logger = logging.getLogger(__name__)
 _model: SentenceTransformer | None = None
 
 
-def load_embedding_model(model_name: str = "intfloat/multilingual-e5-small") -> None:
-    """Load embedding model into memory. Call once at startup."""
+def load_embedding_model(model_name: str = "intfloat/multilingual-e5-small", device: str = "cpu") -> None:
+    """Load embedding model into memory. Call once at startup.
+
+    Use device="cpu" to avoid VRAM contention with vLLM on GPU.
+    """
     global _model
-    logger.info("Loading embedding model: %s", model_name)
+    logger.info("Loading embedding model: %s (device=%s)", model_name, device)
     t0 = time.time()
-    _model = SentenceTransformer(model_name)
+    _model = SentenceTransformer(model_name, device=device)
     logger.info("Embedding model loaded in %.1fs (dim=%d)", time.time() - t0, _model.get_sentence_embedding_dimension())
 
 

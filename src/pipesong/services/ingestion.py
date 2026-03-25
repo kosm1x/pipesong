@@ -18,12 +18,19 @@ def extract_text(file_bytes: bytes, filename: str) -> str:
     suffix = Path(filename).suffix.lower()
 
     if suffix == ".pdf":
+        import os
         import pymupdf4llm
         import tempfile
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            tmp.write(file_bytes)
-            tmp.flush()
-            return pymupdf4llm.to_markdown(tmp.name)
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp_path = tmp.name
+                tmp.write(file_bytes)
+                tmp.flush()
+            return pymupdf4llm.to_markdown(tmp_path)
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
     if suffix == ".docx":
         from docx import Document

@@ -13,11 +13,20 @@ from pipesong.services.ingestion import ingest_document
 router = APIRouter(prefix="/knowledge-bases", tags=["knowledge-bases"])
 
 
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+
+
 class KBCreate(BaseModel):
     name: str
     description: str | None = None
     chunk_size: int = 512
     chunk_overlap: int = 50
+
+    def model_post_init(self, __context):
+        if not (64 <= self.chunk_size <= 2048):
+            raise ValueError("chunk_size must be between 64 and 2048")
+        if not (0 <= self.chunk_overlap < self.chunk_size):
+            raise ValueError("chunk_overlap must be >= 0 and < chunk_size")
 
 
 class KBResponse(BaseModel):
@@ -70,6 +79,8 @@ async def upload_document(
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Empty file")
+    if len(file_bytes) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail=f"File too large (max {MAX_UPLOAD_SIZE // 1024 // 1024} MB)")
 
     try:
         kb.status = "indexing"
@@ -84,12 +95,18 @@ async def upload_document(
             chunk_overlap=kb.chunk_overlap,
         )
     except ValueError as e:
-        kb.status = "failed"
-        await session.commit()
+        await session.rollback()
+        kb = await session.get(KnowledgeBase, kb_id)
+        if kb:
+            kb.status = "failed"
+            await session.commit()
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        kb.status = "failed"
-        await session.commit()
+        await session.rollback()
+        kb = await session.get(KnowledgeBase, kb_id)
+        if kb:
+            kb.status = "failed"
+            await session.commit()
         raise HTTPException(status_code=500, detail=f"Ingestion failed: {e}")
 
     return {"filename": file.filename, "chunks_created": chunk_count, "status": "ready"}
