@@ -9,7 +9,7 @@ Last updated: 2026-03-24
 | **0 — Benchmarks**            | Validate LLM, TTS, turn detection in Spanish      | `DONE`        | 100%    |
 | **1 — First Call**            | Pipeline + Telnyx + basic API + recording         | `DONE`        | 100%    |
 | **2 — Multi-Agent + Tools**   | Agent config, routing, function calling, webhooks | `DONE`        | 100%    |
-| **3 — Knowledge Base**        | RAG pipeline, pgvector, retrieval                 | `NOT STARTED` | 0%      |
+| **3 — Knowledge Base**        | RAG pipeline, pgvector, retrieval                 | `DONE`        | 90%     |
 | **4 — Latency + Flows**       | Sentence streaming, caching, flow engine          | `NOT STARTED` | 0%      |
 | **5 — Analysis + Monitoring** | Post-call analysis, Prometheus, Grafana           | `NOT STARTED` | 0%      |
 | **6 — Scale + Hardening**     | Overflow, batch calling, load testing             | `NOT STARTED` | 0%      |
@@ -109,18 +109,18 @@ Last updated: 2026-03-24
 **Goal:** Upload docs, agent answers from them accurately.
 **Exit:** 20-page manual uploaded, agent answers 8/10 questions correctly.
 
-| #    | Activity                                                             | Status        | Notes             |
-| ---- | -------------------------------------------------------------------- | ------------- | ----------------- |
-| 3.1  | Upload API: PDF, DOCX, TXT, MD, CSV, HTML                            | `NOT STARTED` |                   |
-| 3.2  | Text extraction + chunking (512 tokens, 50 overlap)                  | `NOT STARTED` |                   |
-| 3.3  | Embedding: local `all-MiniLM-L6-v2` → pgvector                       | `NOT STARTED` |                   |
-| 3.4  | Per-agent KB assignment (foreign key)                                | `NOT STARTED` |                   |
-| 3.5  | Retrieval: embed utterance → cosine similarity → top-3 → LLM context | `NOT STARTED` | Target <50ms      |
-| 3.6  | HNSW index on pgvector for fast retrieval                            | `NOT STARTED` |                   |
-| 3.7  | Configurable: chunk count, similarity threshold per agent            | `NOT STARTED` |                   |
-| 3.8  | URL sources: fetch and index web pages                               | `NOT STARTED` |                   |
-| 3.9  | Auto-refresh: re-crawl URLs every 24h                                | `NOT STARTED` | Background worker |
-| 3.10 | KB status API: indexing progress, counts                             | `NOT STARTED` |                   |
+| #    | Activity                                                             | Status     | Notes                                                                  |
+| ---- | -------------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------- |
+| 3.1  | Upload API: PDF, DOCX, TXT, MD, CSV, HTML                            | `DONE`     | pymupdf4llm + python-docx + markdownify + stdlib                       |
+| 3.2  | Text extraction + chunking (512 tokens, 50 overlap)                  | `DONE`     | tiktoken cl100k_base tokenizer                                         |
+| 3.3  | Embedding: local multilingual-e5-small → pgvector                    | `DONE`     | 384 dims, GPU inference ~10ms, loaded at startup                       |
+| 3.4  | Per-agent KB assignment (foreign key)                                | `DONE`     | knowledge_base_id FK on Agent, kb_chunk_count, kb_similarity_threshold |
+| 3.5  | Retrieval: embed utterance → cosine similarity → top-K → LLM context | `DONE`     | RAGProcessor, 11-32ms total, replaces previous context each turn       |
+| 3.6  | HNSW index on pgvector for fast retrieval                            | `DONE`     | m=16, ef_construction=64                                               |
+| 3.7  | Configurable: chunk count, similarity threshold per agent            | `DONE`     | kb_chunk_count (default 2), kb_similarity_threshold (default 0.5)      |
+| 3.8  | URL sources: fetch and index web pages                               | `DEFERRED` | Phase 4+                                                               |
+| 3.9  | Auto-refresh: re-crawl URLs every 24h                                | `DEFERRED` | Phase 4+                                                               |
+| 3.10 | KB status API: indexing progress, counts                             | `DONE`     | GET /knowledge-bases/{id} returns status + counts                      |
 
 ---
 

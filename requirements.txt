@@ -16,6 +16,17 @@ minio==7.2.15
 # HTTP client (tool execution, webhooks)
 httpx==0.28.1
 
+# RAG / Knowledge Base
+sentence-transformers>=3.0.0
+pgvector>=0.3.0
+tiktoken>=0.7.0
+pymupdf4llm>=0.0.17
+python-docx>=1.1.0
+markdownify>=0.13.0
+
+# File upload
+python-multipart>=0.0.20
+
 # Config
 python-dotenv==1.1.0
 pydantic-settings==2.9.1

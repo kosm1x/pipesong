@@ -25,7 +25,7 @@ from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 
 from pipesong.config import settings
-from pipesong.processors import SpanishOnlyFilter, ToolCallProcessor, TranscriptCapture
+from pipesong.processors import RAGProcessor, SpanishOnlyFilter, ToolCallProcessor, TranscriptCapture
 from pipesong.services.tools import ToolExecutor, format_tools_prompt
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,9 @@ def create_pipeline(
     tools: list[dict] | None = None,
     variables: dict | None = None,
     call_control_id: str | None = None,
+    knowledge_base_id=None,
+    kb_chunk_count: int = 3,
+    kb_similarity_threshold: float = 0.5,
 ) -> tuple["PipelineTask", "ToolCallProcessor | None"]:
     """Build a Pipecat pipeline for a single call."""
 
@@ -74,7 +77,7 @@ def create_pipeline(
         settings=OpenAILLMService.Settings(
             model=settings.vllm_model,
             system_instruction=full_prompt,
-            max_tokens=200 if tools else 150,
+            max_tokens=300 if (tools or knowledge_base_id) else 150,
             frequency_penalty=1.2,
         ),
     )
@@ -113,7 +116,7 @@ def create_pipeline(
     # Filter non-Spanish text from LLM output (Qwen Chinese code-switching fix)
     spanish_filter = SpanishOnlyFilter()
 
-    # Pipeline: audio in → STT → [user transcript] → context → LLM → [tool processor] → [assistant transcript] → filter → TTS → audio out → [recording]
+    # Pipeline: audio in → STT → [user transcript] → [RAG] → context → LLM → [tool processor] → [assistant transcript] → filter → TTS → audio out → [recording]
     tool_processor = None
     processors = [
         transport.input(),
@@ -122,6 +125,14 @@ def create_pipeline(
     if call_id and session_factory:
         # User capture between STT and aggregator (catches TranscriptionFrame)
         processors.append(TranscriptCapture(call_id=call_id, session_factory=session_factory))
+    if knowledge_base_id and session_factory:
+        processors.append(RAGProcessor(
+            knowledge_base_id=knowledge_base_id,
+            session_factory=session_factory,
+            context=context,
+            chunk_count=kb_chunk_count,
+            threshold=kb_similarity_threshold,
+        ))
     processors.extend([
         user_aggregator,
         llm,

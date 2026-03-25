@@ -112,15 +112,17 @@ def format_tools_prompt(tools: list[dict]) -> str:
             lines.extend(param_parts)
         lines.append("")
 
-    # Always include built-in tools
-    lines.append("• end_call: Terminar la llamada de forma educada cuando el usuario quiere colgar")
+    # Built-in tools
+    lines.append("• end_call: Terminar la llamada después de que el usuario se despida.")
+    lines.append("  Usar cuando: el usuario dice adiós, gracias por todo, hasta luego, ya no necesito nada.")
+    lines.append("  NO usar para: responder preguntas o dar información. El campo 'reason' es SOLO una frase corta de despedida.")
     lines.append("  Parámetros:")
-    lines.append("    - reason: Mensaje de despedida (requerido)")
+    lines.append("    - reason: Frase corta de despedida, máximo 15 palabras (requerido)")
     lines.append("")
-    lines.append("• transfer_call: Transferir la llamada a otro número de teléfono")
+    lines.append("• transfer_call: Transferir la llamada a otro número")
     lines.append("  Parámetros:")
-    lines.append("    - target_number: Número de teléfono destino en formato E.164 (requerido)")
-    lines.append("    - reason: Motivo de la transferencia (requerido)")
+    lines.append("    - target_number: Número destino E.164 (requerido)")
+    lines.append("    - reason: Motivo breve (requerido)")
     lines.append("")
 
     return "\n".join(lines)

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from pipesong.services.database import Base
@@ -23,4 +23,9 @@ class Agent(Base):
     variables: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
     max_call_duration: Mapped[int] = mapped_column(Integer, default=600)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    knowledge_base_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("knowledge_bases.id", ondelete="SET NULL"), nullable=True
+    )
+    kb_chunk_count: Mapped[int] = mapped_column(Integer, default=3)
+    kb_similarity_threshold: Mapped[float] = mapped_column(Float, default=0.5)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

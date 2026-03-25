@@ -51,6 +51,9 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Initializing MinIO...")
     get_minio_client()
+    logger.info("Loading embedding model...")
+    from pipesong.services.embeddings import load_embedding_model
+    load_embedding_model()
     logger.info("Pipesong ready — listening on %s:%s", settings.app_host, settings.app_port)
     yield
     logger.info("Shutting down...")
@@ -76,11 +79,13 @@ async def api_key_auth(request, call_next):
 
 from pipesong.api.agents import router as agents_router
 from pipesong.api.calls import router as calls_router
+from pipesong.api.knowledge_base import router as kb_router
 from pipesong.api.outbound import router as outbound_router
 from pipesong.api.telnyx import router as telnyx_router
 
 app.include_router(agents_router)
 app.include_router(calls_router)
+app.include_router(kb_router)
 app.include_router(outbound_router)
 app.include_router(telnyx_router)
 
@@ -161,6 +166,9 @@ async def websocket_endpoint(websocket: WebSocket):
             agent_webhook_url = agent.webhook_url
             agent_webhook_secret = agent.webhook_secret
             agent_max_duration = agent.max_call_duration or 600
+            agent_kb_id = agent.knowledge_base_id
+            agent_kb_chunks = agent.kb_chunk_count
+            agent_kb_threshold = agent.kb_similarity_threshold
 
         # Fire call_started webhook
         if agent_webhook_url:
@@ -223,6 +231,9 @@ async def websocket_endpoint(websocket: WebSocket):
             tools=agent_tools if agent_tools else None,
             variables=call_vars,
             call_control_id=call_control_id,
+            knowledge_base_id=agent_kb_id,
+            kb_chunk_count=agent_kb_chunks,
+            kb_similarity_threshold=agent_kb_threshold,
         )
         if tool_processor:
             tool_processor.set_task(task)

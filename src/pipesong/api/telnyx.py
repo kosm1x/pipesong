@@ -30,7 +30,11 @@ async def telnyx_webhook(request: Request):
             logger.warning("Telnyx webhook rejected: invalid token")
             return {"error": "unauthorized"}, 401
 
-    body = await request.json()
+    # TeXML inbound calls POST with empty/form body, not JSON
+    try:
+        body = await request.json()
+    except Exception:
+        return _handle_inbound_texml()
 
     # Call Control events have a "data" wrapper with "event_type"
     data = body.get("data", {})

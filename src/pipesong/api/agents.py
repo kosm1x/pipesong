@@ -25,6 +25,9 @@ class AgentCreate(BaseModel):
     variables: dict[str, Any] | None = None
     max_call_duration: int = 600
     is_active: bool = True
+    knowledge_base_id: uuid.UUID | None = None
+    kb_chunk_count: int = 3
+    kb_similarity_threshold: float = 0.5
 
 
 class AgentUpdate(BaseModel):
@@ -40,6 +43,9 @@ class AgentUpdate(BaseModel):
     variables: dict[str, Any] | None = None
     max_call_duration: int | None = None
     is_active: bool | None = None
+    knowledge_base_id: uuid.UUID | None = None
+    kb_chunk_count: int | None = None
+    kb_similarity_threshold: float | None = None
 
 
 class AgentResponse(BaseModel):
@@ -55,6 +61,9 @@ class AgentResponse(BaseModel):
     variables: dict[str, Any] | None
     max_call_duration: int
     is_active: bool
+    knowledge_base_id: uuid.UUID | None
+    kb_chunk_count: int
+    kb_similarity_threshold: float
 
     model_config = {"from_attributes": True}
 

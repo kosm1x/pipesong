@@ -109,7 +109,7 @@ curl -X POST http://localhost:8080/agents \
 | 0     | Validate LLM, TTS, turn detector in Spanish  | **Done**                                                                                          |
 | 1     | First phone call with AI agent               | **Done** — disclosure + transcript + recording + STT error logging                                |
 | 2     | Multi-agent routing, tools, webhooks         | **Done** — tool calling + webhooks (HMAC) + outbound calls + end_call/transfer_call + audit fixes |
-| 3     | Knowledge base (RAG)                         | Not started                                                                                       |
+| 3     | Knowledge base (RAG)                         | **Done** — pgvector + multilingual-e5-small, 11-32ms retrieval, KB CRUD + document upload         |
 | 4     | Latency optimization, conversation flows     | Not started                                                                                       |
 | 5     | Call analysis, monitoring, Grafana           | Not started                                                                                       |
 | 6     | Scale hardening, batch calling, load testing | Not started                                                                                       |

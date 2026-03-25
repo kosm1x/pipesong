@@ -62,6 +62,16 @@ class SpanishOnlyFilter(FrameProcessor):
             # Strip non-Latin characters
             text = NON_LATIN_RE.sub(" ", text)
 
+            # Voice-friendly: convert currency to spoken Spanish
+            text = re.sub(r'\$\s*([\d,.]+)\s*MXN', r'\1 pesos', text)
+            text = re.sub(r'\$\s*([\d,.]+)', r'\1 pesos', text)
+            text = text.replace("MXN", "pesos")
+
+            # Strip markdown/symbols that TTS reads literally
+            text = re.sub(r'[*#&_~`|]', ' ', text)
+            text = re.sub(r'^-\s+', '', text, flags=re.MULTILINE)
+            text = re.sub(r'^\d+\.\s+', '', text, flags=re.MULTILINE)
+
             # Fix missing spaces
             text = MISSING_SPACE_BEFORE_INVERTED.sub(r'\1 \2', text)
             text = MISSING_SPACE_AFTER_PUNCT.sub(r'\1 \2', text)
@@ -128,6 +138,112 @@ class TranscriptCapture(FrameProcessor):
                 await session.commit()
         except Exception as e:
             logger.error("TranscriptCapture: failed to save %s transcript: %s", role, e)
+
+
+class RAGProcessor(FrameProcessor):
+    """Retrieves relevant KB chunks on each user utterance and injects into LLM context.
+
+    Place between TranscriptCapture(user) and user_aggregator. Intercepts
+    TranscriptionFrame, embeds the query, runs pgvector cosine search,
+    and appends top-K chunks as a system message in the LLM context.
+    """
+
+    def __init__(self, knowledge_base_id, session_factory, context, chunk_count=2, threshold=0.5, **kwargs):
+        super().__init__(**kwargs)
+        self._kb_id = knowledge_base_id
+        self._session_factory = session_factory
+        self._context = context
+        self._chunk_count = chunk_count
+        self._threshold = threshold
+        self._last_rag_msg = None  # Track the RAG message object for replacement
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, TranscriptionFrame) and frame.text and frame.text.strip():
+            await self._retrieve_and_inject(frame.text.strip())
+
+        await self.push_frame(frame, direction)
+
+    async def _retrieve_and_inject(self, query: str):
+        try:
+            from pipesong.services.embeddings import embed
+            from sqlalchemy import text as sql_text
+
+            t0 = time.time()
+            query_vec = embed(query)
+            embed_ms = (time.time() - t0) * 1000
+
+            async with self._session_factory() as session:
+                # pgvector cosine distance: 1 - cosine_similarity
+                # Use CAST() instead of :: to avoid SQLAlchemy parameter conflict
+                result = await session.execute(
+                    sql_text(
+                        "SELECT content, 1 - (embedding <=> CAST(:vec AS vector)) AS similarity "
+                        "FROM knowledge_base_chunks "
+                        "WHERE knowledge_base_id = CAST(:kb_id AS uuid) "
+                        "ORDER BY embedding <=> CAST(:vec AS vector) "
+                        "LIMIT :limit"
+                    ),
+                    {"vec": str(query_vec), "kb_id": str(self._kb_id), "limit": self._chunk_count},
+                )
+                rows = result.fetchall()
+
+            query_ms = (time.time() - t0) * 1000 - embed_ms
+            total_ms = (time.time() - t0) * 1000
+
+            # Filter by threshold
+            chunks = [row[0] for row in rows if row[1] >= self._threshold]
+
+            if chunks:
+                # Sanitize chunks for voice readability
+                clean_chunks = [self._sanitize_for_voice(c) for c in chunks]
+                context_text = "\n\n".join(clean_chunks)
+                rag_content = f"[KB] Usa esta información para responder. Sé breve y natural, como en una llamada telefónica:\n{context_text}"
+                # Remove previous RAG message in-place, then append new one
+                self._context._messages[:] = [
+                    m for m in self._context._messages
+                    if not (isinstance(m, dict) and str(m.get("content", "")).startswith("[KB] "))
+                ]
+                self._context.add_message({"role": "system", "content": rag_content})
+                logger.info(
+                    "RAG: query='%s' → %d chunks (embed=%.0fms, query=%.0fms, total=%.0fms)",
+                    query[:50], len(chunks), embed_ms, query_ms, total_ms,
+                )
+            else:
+                logger.debug("RAG: no relevant chunks for '%s' (threshold=%.2f)", query[:50], self._threshold)
+
+        except Exception as e:
+            logger.error("RAG retrieval failed: %s", e)
+
+    @staticmethod
+    def _sanitize_for_voice(text: str) -> str:
+        """Clean KB chunk text for voice readability."""
+        # Convert currency to spoken Spanish
+        text = re.sub(r'\$\s*([\d,]+)\s*MXN', r'\1 pesos', text)
+        text = re.sub(r'\$\s*([\d,]+)', r'\1 pesos', text)
+        text = text.replace("MXN", "pesos mexicanos")
+        # Remove thousand-separator commas in numbers
+        text = re.sub(r'(\d),(\d{3})', r'\1\2', text)
+        # Convert numbers 1000+ to spoken Mexican Spanish
+        # so the LLM outputs them in spoken form and TTS pronounces correctly
+        def _num_spoken(m):
+            full = int(m.group(0))
+            thousands = full // 1000
+            remainder = full % 1000
+            prefix = "mil" if thousands == 1 else f"{thousands} mil"
+            return f"{prefix} {remainder}" if remainder else prefix
+        text = re.sub(r'\b[1-9]\d{3,5}\b', _num_spoken, text)
+        # Strip markdown formatting
+        text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^\*\s+', '', text, flags=re.MULTILINE)
+        text = re.sub(r'^-\s+', '', text, flags=re.MULTILINE)
+        text = re.sub(r'\*{2,}', '', text)
+        text = re.sub(r'\*', '', text)
+        text = re.sub(r'`[^`]*`', '', text)
+        text = re.sub(r'^\d+\.\s+', '', text, flags=re.MULTILINE)
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        return text.strip()
 
 
 # Pattern for Qwen's native format: tool_name{"param": "value"} or tool_name({"param": "value"})
@@ -216,9 +332,14 @@ class ToolCallProcessor(FrameProcessor):
                 await self._execute_tool(tool_name, arguments)
                 # Don't pass buffered frames or end frame — new LLM turn will generate fresh output
             else:
-                # No tool call — replay buffered frames downstream
-                for buffered_frame in self._buffer:
-                    await self.push_frame(buffered_frame, direction)
+                # No tool call — fix numbers and replay as single frame
+                fixed_text = self._fix_numbers_for_tts(text)
+                if fixed_text != text:
+                    # Emit fixed text as single frame instead of replaying originals
+                    await self.push_frame(LLMTextFrame(text=fixed_text), direction)
+                else:
+                    for buffered_frame in self._buffer:
+                        await self.push_frame(buffered_frame, direction)
                 await self.push_frame(frame, direction)
 
             # Reset buffer
@@ -228,6 +349,21 @@ class ToolCallProcessor(FrameProcessor):
 
         # All other frames pass through unchanged
         await self.push_frame(frame, direction)
+
+    @staticmethod
+    def _fix_numbers_for_tts(text: str) -> str:
+        """Convert numbers 1000+ to spoken Mexican Spanish for TTS pronunciation."""
+        # Remove thousand-separator commas: 1,499 → 1499
+        text = re.sub(r'(\d),(\d{3})', r'\1\2', text)
+        # Convert to spoken form: 1499 → mil 499, 2500 → 2 mil 500
+        def _num_spoken(m):
+            full = int(m.group(0))
+            thousands = full // 1000
+            remainder = full % 1000
+            prefix = "mil" if thousands == 1 else f"{thousands} mil"
+            return f"{prefix} {remainder}" if remainder else prefix
+        text = re.sub(r'\b[1-9]\d{3,5}\b', _num_spoken, text)
+        return text
 
     def _parse_tool_call(self, text: str) -> dict | None:
         # Try structured JSON extraction first (handles nested arguments)
@@ -287,25 +423,24 @@ class ToolCallProcessor(FrameProcessor):
         if len(result_text) > self.MAX_TOOL_RESULT_CHARS:
             result_text = result_text[:self.MAX_TOOL_RESULT_CHARS] + "... (truncado)"
 
-        self._context.messages.append({
+        self._context.add_message({
             "role": "assistant",
             "content": json.dumps({"tool": tool_name, "arguments": "..."}, ensure_ascii=False),
         })
         # Use "system" role for tool results to reduce prompt injection risk (H5)
-        self._context.messages.append({
+        self._context.add_message({
             "role": "system",
             "content": f"[Resultado de herramienta {tool_name}]: {result_text}\nResponde al usuario con esta información.",
         })
 
         # Cap context growth (H4) — keep first message (system prompt) + last N
-        if len(self._context.messages) > self.MAX_CONTEXT_MESSAGES:
-            self._context.messages = (
-                self._context.messages[:1] + self._context.messages[-(self.MAX_CONTEXT_MESSAGES - 1):]
-            )
+        msgs = self._context.get_messages()
+        if len(msgs) > self.MAX_CONTEXT_MESSAGES:
+            self._context.set_messages(msgs[:1] + msgs[-(self.MAX_CONTEXT_MESSAGES - 1):])
 
         # Trigger new LLM turn with updated context
         await self.push_frame(
-            LLMMessagesFrame(self._context.messages),
+            LLMMessagesFrame(self._context.get_messages()),
             FrameDirection.UPSTREAM,
         )
 
