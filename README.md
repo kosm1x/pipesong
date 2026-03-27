@@ -110,11 +110,12 @@ curl -X POST http://localhost:8080/agents \
 | 1     | First phone call with AI agent               | **Done** — disclosure + transcript + recording + STT error logging                                |
 | 2     | Multi-agent routing, tools, webhooks         | **Done** — tool calling + webhooks (HMAC) + outbound calls + end_call/transfer_call + audit fixes |
 | 3     | Knowledge base (RAG)                         | **Done** — pgvector + multilingual-e5-small, 11-32ms retrieval, KB CRUD + document upload         |
-| 4     | Latency optimization, conversation flows     | Not started                                                                                       |
+| 4a    | Latency optimization                         | Not started                                                                                       |
+| 4b    | Conversation flows                           | Not started                                                                                       |
 | 5     | Call analysis, monitoring, Grafana           | Not started                                                                                       |
 | 6     | Scale hardening, batch calling, load testing | Not started                                                                                       |
 
-**Total: 16-21 weeks.** See [PLAN.md](PLAN.md) for full details, [PROGRESS.md](docs/PROGRESS.md) for activity tracking.
+**Total: 18-23 weeks.** See [PLAN.md](PLAN.md) for full details, [PROGRESS.md](docs/PROGRESS.md) for activity tracking.
 
 ## Known Issues
 
