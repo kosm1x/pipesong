@@ -1,12 +1,14 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pipesong.models.agent import Agent
+from pipesong.models.call import Call, CallLatency
 from pipesong.services.database import get_session
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -120,3 +122,71 @@ async def delete_agent(agent_id: uuid.UUID, session: AsyncSession = Depends(get_
         raise HTTPException(status_code=404, detail="Agent not found")
     agent.is_active = False
     await session.commit()
+
+
+# --- Latency aggregation (Phase 4a) ---
+
+
+class PercentileStats(BaseModel):
+    p50: float | None
+    p90: float | None
+    p95: float | None
+    p99: float | None
+    count: int
+
+
+class AgentLatencyResponse(BaseModel):
+    agent_id: uuid.UUID
+    window_hours: int
+    stt_ms: PercentileStats
+    llm_ttft_ms: PercentileStats
+    tts_ttfb_ms: PercentileStats
+    e2e_ms: PercentileStats
+
+
+def _percentiles(values: list[float]) -> PercentileStats:
+    """Compute p50/p90/p95/p99 from a sorted list of values."""
+    if not values:
+        return PercentileStats(p50=None, p90=None, p95=None, p99=None, count=0)
+    s = sorted(values)
+    n = len(s)
+
+    def _p(pct: float) -> float:
+        idx = int(pct / 100 * (n - 1))
+        return round(s[idx], 1)
+
+    return PercentileStats(p50=_p(50), p90=_p(90), p95=_p(95), p99=_p(99), count=n)
+
+
+@router.get("/{agent_id}/latency", response_model=AgentLatencyResponse)
+async def get_agent_latency(
+    agent_id: uuid.UUID,
+    hours: int = Query(default=24, ge=1, le=720, description="Lookback window in hours"),
+    session: AsyncSession = Depends(get_session),
+):
+    """p50/p90/p95/p99 latency aggregation for an agent over a time window."""
+    agent = await session.get(Agent, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+
+    result = await session.execute(
+        select(CallLatency)
+        .join(Call, CallLatency.call_id == Call.id)
+        .where(Call.agent_id == agent_id, CallLatency.created_at >= since)
+        .order_by(CallLatency.created_at)
+    )
+    rows = result.scalars().all()
+
+    def _vals(field: str) -> list[float]:
+        return [getattr(r, field) for r in rows if getattr(r, field) is not None]
+
+    return AgentLatencyResponse(
+        agent_id=agent_id,
+        window_hours=hours,
+        stt_ms=_percentiles(_vals("stt_ms")),
+        llm_ttft_ms=_percentiles(_vals("llm_ttft_ms")),
+        tts_ttfb_ms=_percentiles(_vals("tts_ttfb_ms")),
+        e2e_ms=_percentiles(_vals("e2e_ms")),
+    )

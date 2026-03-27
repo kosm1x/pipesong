@@ -25,7 +25,7 @@ from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 
 from pipesong.config import settings
-from pipesong.processors import RAGProcessor, SpanishOnlyFilter, ToolCallProcessor, TranscriptCapture
+from pipesong.processors import MetricsCollector, RAGProcessor, SpanishOnlyFilter, ToolCallProcessor, TranscriptCapture
 from pipesong.services.tools import ToolExecutor, format_tools_prompt
 
 logger = logging.getLogger(__name__)
@@ -153,8 +153,11 @@ def create_pipeline(
     processors.extend([
         spanish_filter,
         tts,
-        transport.output(),
     ])
+    # MetricsCollector after TTS — captures MetricsFrame from all upstream services
+    if call_id and session_factory:
+        processors.append(MetricsCollector(call_id=call_id, session_factory=session_factory))
+    processors.append(transport.output())
     if audio_buffer:
         processors.append(audio_buffer)
     processors.append(assistant_aggregator)

@@ -11,12 +11,14 @@ from pipecat.frames.frames import (
     LLMFullResponseEndFrame,
     LLMMessagesFrame,
     LLMTextFrame,
+    MetricsFrame,
     TTSSpeakFrame,
     TranscriptionFrame,
 )
+from pipecat.metrics.metrics import TTFBMetricsData
 from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
 
-from pipesong.models.call import Transcript
+from pipesong.models.call import CallLatency, Transcript
 from pipesong.services.tools import ToolExecutor
 
 logger = logging.getLogger(__name__)
@@ -89,6 +91,94 @@ class SpanishOnlyFilter(FrameProcessor):
                 await self.push_frame(LLMTextFrame(text=text), direction)
         else:
             await self.push_frame(frame, direction)
+
+
+class MetricsCollector(FrameProcessor):
+    """Collects Pipecat's built-in TTFB metrics and persists per-turn latency to PostgreSQL.
+
+    Intercepts MetricsFrame (emitted by STT/LLM/TTS services when enable_metrics=True)
+    and accumulates per-turn TTFB data. On each LLMFullResponseEndFrame (end of assistant
+    turn), flushes the accumulated metrics as a CallLatency row.
+
+    Place at the end of the pipeline (after TTS, before transport output) to capture
+    all metrics frames flowing through.
+    """
+
+    # Map Pipecat service class names to our column names
+    _SERVICE_MAP = {
+        "deepgram": "stt_ms",
+        "stt": "stt_ms",
+        "openai": "llm_ttft_ms",
+        "llm": "llm_ttft_ms",
+        "kokoro": "tts_ttfb_ms",
+        "tts": "tts_ttfb_ms",
+    }
+
+    def __init__(self, call_id, session_factory, **kwargs):
+        super().__init__(**kwargs)
+        self._call_id = call_id
+        self._session_factory = session_factory
+        self._turn_index = 0
+        self._current_turn: dict[str, float] = {}
+
+    def _classify_metric(self, processor_name: str) -> str | None:
+        """Map a Pipecat processor name like 'DeepgramSTTService' to a column name."""
+        name_lower = processor_name.lower()
+        for key, column in self._SERVICE_MAP.items():
+            if key in name_lower:
+                return column
+        return None
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, MetricsFrame):
+            for metric in frame.data:
+                if isinstance(metric, TTFBMetricsData):
+                    column = self._classify_metric(metric.processor)
+                    if column:
+                        # Pipecat reports TTFB in seconds, we store in ms
+                        self._current_turn[column] = metric.value * 1000
+
+        elif isinstance(frame, LLMFullResponseEndFrame):
+            if self._current_turn:
+                await self._flush_turn()
+
+        await self.push_frame(frame, direction)
+
+    async def _flush_turn(self):
+        """Persist accumulated metrics for the current turn."""
+        metrics = self._current_turn
+        self._current_turn = {}
+
+        # Compute e2e as sum of available components
+        components = [metrics.get("stt_ms"), metrics.get("llm_ttft_ms"), metrics.get("tts_ttfb_ms")]
+        available = [c for c in components if c is not None]
+        e2e = sum(available) if available else None
+
+        try:
+            async with self._session_factory() as session:
+                session.add(CallLatency(
+                    call_id=self._call_id,
+                    turn_index=self._turn_index,
+                    stt_ms=metrics.get("stt_ms"),
+                    llm_ttft_ms=metrics.get("llm_ttft_ms"),
+                    tts_ttfb_ms=metrics.get("tts_ttfb_ms"),
+                    e2e_ms=e2e,
+                ))
+                await session.commit()
+            logger.info(
+                "Latency turn %d: stt=%.0fms llm=%.0fms tts=%.0fms e2e=%.0fms",
+                self._turn_index,
+                metrics.get("stt_ms", 0),
+                metrics.get("llm_ttft_ms", 0),
+                metrics.get("tts_ttfb_ms", 0),
+                e2e or 0,
+            )
+        except Exception as e:
+            logger.error("MetricsCollector: failed to persist turn %d: %s", self._turn_index, e)
+
+        self._turn_index += 1
 
 
 class TranscriptCapture(FrameProcessor):
