@@ -10,7 +10,7 @@ Last updated: 2026-03-27
 | **1 — First Call**            | Pipeline + Telnyx + basic API + recording         | `DONE`        | 100%    |
 | **2 — Multi-Agent + Tools**   | Agent config, routing, function calling, webhooks | `DONE`        | 100%    |
 | **3 — Knowledge Base**        | RAG pipeline, pgvector, retrieval                 | `DONE`        | 90%     |
-| **4a — Latency Optimization** | Metrics wiring, sentence streaming, VAD tuning    | `NOT STARTED` | 0%      |
+| **4a — Latency Optimization** | Metrics wiring, sentence streaming, VAD tuning    | `IN PROGRESS` | 30%     |
 | **4b — Conversation Flows**   | Flow engine, state machine, warm transfer         | `NOT STARTED` | 0%      |
 | **5 — Analysis + Monitoring** | Post-call analysis, Prometheus, Grafana           | `NOT STARTED` | 0%      |
 | **6 — Scale + Hardening**     | Overflow, batch calling, load testing             | `NOT STARTED` | 0%      |
@@ -133,11 +133,11 @@ Last updated: 2026-03-27
 | #                                        | Activity                                                     | Status        | Notes                                                         |
 | ---------------------------------------- | ------------------------------------------------------------ | ------------- | ------------------------------------------------------------- |
 | **Latency Instrumentation (week 1)**     |                                                              |               |                                                               |
-| 4a.1                                     | MetricsCollector processor: intercept MetricsFrame + VAD     | `NOT STARTED` | Wire Pipecat's existing TTFB data, don't reimplement          |
-| 4a.2                                     | Add UserBotLatencyObserver to PipelineTask                   | `NOT STARTED` | Built-in per-turn e2e breakdown                               |
-| 4a.3                                     | Persist to PostgreSQL (call_latency table)                   | `NOT STARTED` | call_id, turn_index, stt_ms, llm_ttft_ms, tts_ttfb_ms, e2e_ms |
-| 4a.4                                     | API: `GET /calls/{id}/latency`                               | `NOT STARTED` | Per-turn breakdown                                            |
-| 4a.5                                     | Aggregation: `GET /agents/{id}/latency` p50/p90/p95/p99      | `NOT STARTED` | Configurable time window                                      |
+| 4a.1                                     | MetricsCollector processor: intercept MetricsFrame + VAD     | `DONE`        | Intercepts TTFBMetricsData, classifies by service name        |
+| 4a.2                                     | Add UserBotLatencyObserver to PipelineTask                   | `DEFERRED`    | MetricsCollector handles it; observer adds if e2e needs fix   |
+| 4a.3                                     | Persist to PostgreSQL (call_latency table)                   | `DONE`        | CallLatency model, auto-flush on LLMFullResponseEndFrame      |
+| 4a.4                                     | API: `GET /calls/{id}/latency`                               | `DONE`        | Per-turn breakdown + summary averages                         |
+| 4a.5                                     | Aggregation: `GET /agents/{id}/latency` p50/p90/p95/p99      | `DONE`        | ?hours=N query param (1-720h, default 24)                     |
 | 4a.6                                     | Baseline run: 20 calls + comma vs period A/B test            | `NOT STARTED` | Establish numbers + inform SentenceStreamBuffer design        |
 | **Sentence Streaming (week 2)**          |                                                              |               |                                                               |
 | 4a.7                                     | SentenceStreamBuffer processor (Spanish-aware boundaries)    | `NOT STARTED` | `.?!` + `¿¡` pairs, abbreviation exclusions, clause flush TBD |
