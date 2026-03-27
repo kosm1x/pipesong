@@ -7,7 +7,7 @@ Based on official Pipecat Telnyx chatbot example (v0.0.106).
 """
 import logging
 
-from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.audio.vad.silero import SileroVADAnalyzer, VADParams
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -23,9 +23,17 @@ from pipecat.services.tts_service import TextAggregationMode
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport
 
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
+from pipecat.processors.filters.stt_mute_filter import STTMuteFilter, STTMuteConfig, STTMuteStrategy
 
 from pipesong.config import settings
-from pipesong.processors import MetricsCollector, RAGProcessor, SpanishOnlyFilter, ToolCallProcessor, TranscriptCapture
+from pipesong.processors import (
+    MetricsCollector,
+    RAGProcessor,
+    SentenceStreamBuffer,
+    SpanishOnlyFilter,
+    ToolCallProcessor,
+    TranscriptCapture,
+)
 from pipesong.services.tools import ToolExecutor, format_tools_prompt
 
 logger = logging.getLogger(__name__)
@@ -45,6 +53,8 @@ def create_pipeline(
     knowledge_base_id=None,
     kb_chunk_count: int = 3,
     kb_similarity_threshold: float = 0.5,
+    vad_stop_secs: float | None = None,
+    vad_confidence: float | None = None,
 ) -> tuple["PipelineTask", "ToolCallProcessor | None"]:
     """Build a Pipecat pipeline for a single call."""
 
@@ -105,21 +115,39 @@ def create_pipeline(
     )
 
     # Context + VAD on user aggregator (official pattern)
+    # Use agent-level VAD overrides if provided, otherwise Pipecat defaults
+    vad_params = VADParams()
+    if vad_stop_secs is not None:
+        vad_params.stop_secs = vad_stop_secs
+    if vad_confidence is not None:
+        vad_params.confidence = vad_confidence
+
     context = LLMContext()
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
         user_params=LLMUserAggregatorParams(
-            vad_analyzer=SileroVADAnalyzer(),
+            vad_analyzer=SileroVADAnalyzer(sample_rate=8000, params=vad_params),
         ),
     )
 
     # Filter non-Spanish text from LLM output (Qwen Chinese code-switching fix)
     spanish_filter = SpanishOnlyFilter()
 
-    # Pipeline: audio in → STT → [user transcript] → [RAG] → context → LLM → [tool processor] → [assistant transcript] → filter → TTS → audio out → [recording]
+    # Sentence streaming buffer — handles sentence boundary detection and
+    # emits TTSSpeakFrames for LLM↔TTS overlap (Phase 4a)
+    sentence_buffer = SentenceStreamBuffer()
+
+    # Pipeline: audio in → STT → [user transcript] → [RAG] → context → LLM →
+    # [tool processor] → [assistant transcript] → filter → sentence buffer → TTS → [metrics] → audio out
+    # Suppress interruptions during disclosure (FIRST_SPEECH) and tool execution (FUNCTION_CALL)
+    stt_mute = STTMuteFilter(
+        config=STTMuteConfig(strategies={STTMuteStrategy.FIRST_SPEECH, STTMuteStrategy.FUNCTION_CALL}),
+    )
+
     tool_processor = None
     processors = [
         transport.input(),
+        stt_mute,
         stt,
     ]
     if call_id and session_factory:
@@ -152,6 +180,7 @@ def create_pipeline(
         processors.append(TranscriptCapture(call_id=call_id, session_factory=session_factory))
     processors.extend([
         spanish_filter,
+        sentence_buffer,
         tts,
     ])
     # MetricsCollector after TTS — captures MetricsFrame from all upstream services

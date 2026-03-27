@@ -169,6 +169,8 @@ async def websocket_endpoint(websocket: WebSocket):
             agent_kb_id = agent.knowledge_base_id
             agent_kb_chunks = agent.kb_chunk_count
             agent_kb_threshold = agent.kb_similarity_threshold
+            agent_vad_stop = agent.vad_stop_secs
+            agent_vad_confidence = agent.vad_confidence
 
         # Fire call_started webhook
         if agent_webhook_url:
@@ -234,6 +236,8 @@ async def websocket_endpoint(websocket: WebSocket):
             knowledge_base_id=agent_kb_id,
             kb_chunk_count=agent_kb_chunks,
             kb_similarity_threshold=agent_kb_threshold,
+            vad_stop_secs=agent_vad_stop,
+            vad_confidence=agent_vad_confidence,
         )
         if tool_processor:
             tool_processor.set_task(task)

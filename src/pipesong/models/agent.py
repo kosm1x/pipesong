@@ -28,4 +28,6 @@ class Agent(Base):
     )
     kb_chunk_count: Mapped[int] = mapped_column(Integer, default=3)
     kb_similarity_threshold: Mapped[float] = mapped_column(Float, default=0.5)
+    vad_stop_secs: Mapped[float | None] = mapped_column(Float, nullable=True)  # Silero VAD silence duration (default 0.2)
+    vad_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)  # Silero VAD speech confidence (default 0.7)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

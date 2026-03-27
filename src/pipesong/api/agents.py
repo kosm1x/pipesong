@@ -30,6 +30,8 @@ class AgentCreate(BaseModel):
     knowledge_base_id: uuid.UUID | None = None
     kb_chunk_count: int = 3
     kb_similarity_threshold: float = 0.5
+    vad_stop_secs: float | None = None
+    vad_confidence: float | None = None
 
 
 class AgentUpdate(BaseModel):
@@ -48,6 +50,8 @@ class AgentUpdate(BaseModel):
     knowledge_base_id: uuid.UUID | None = None
     kb_chunk_count: int | None = None
     kb_similarity_threshold: float | None = None
+    vad_stop_secs: float | None = None
+    vad_confidence: float | None = None
 
 
 class AgentResponse(BaseModel):
@@ -66,6 +70,8 @@ class AgentResponse(BaseModel):
     knowledge_base_id: uuid.UUID | None
     kb_chunk_count: int
     kb_similarity_threshold: float
+    vad_stop_secs: float | None
+    vad_confidence: float | None
 
     model_config = {"from_attributes": True}
 

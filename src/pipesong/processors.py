@@ -12,6 +12,7 @@ from pipecat.frames.frames import (
     LLMMessagesFrame,
     LLMTextFrame,
     MetricsFrame,
+    StartInterruptionFrame,
     TTSSpeakFrame,
     TranscriptionFrame,
 )
@@ -179,6 +180,124 @@ class MetricsCollector(FrameProcessor):
             logger.error("MetricsCollector: failed to persist turn %d: %s", self._turn_index, e)
 
         self._turn_index += 1
+
+
+# Spanish abbreviations that end with a period but aren't sentence boundaries
+_ABBREVIATIONS = frozenset({
+    "sr", "sra", "srta", "dr", "dra", "lic", "ing", "arq", "prof",
+    "col", "av", "calle", "no", "núm", "tel", "ext", "dept", "edo",
+    "mun", "cp", "etc", "approx", "vol", "cap", "pág", "fig",
+    "min", "máx", "aprox", "vs",
+})
+
+
+class SentenceStreamBuffer(FrameProcessor):
+    """Buffers LLM text tokens and emits complete sentences as TTSSpeakFrames.
+
+    This is the core LLM↔TTS overlap mechanism: while Kokoro generates audio
+    for sentence N, the LLM is already producing sentence N+1 into this buffer.
+
+    Sentence boundaries: .?! and ¿¡ pair closings.
+    Excludes: abbreviations (Sr., Dra., etc.), ellipsis (...), decimal numbers.
+
+    On interruption (StartInterruptionFrame): discards buffered partial sentence
+    and clears any pending state. Pipecat's built-in interruption cancels the
+    current TTS frame; this processor ensures the sentence queue is also cleared.
+
+    Place between SpanishOnlyFilter and TTS in the pipeline.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._buffer = ""
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, LLMTextFrame) and frame.text:
+            self._buffer += frame.text
+            await self._flush_sentences(direction)
+            return  # consumed — sentences emitted as TTSSpeakFrames
+
+        if isinstance(frame, LLMFullResponseEndFrame):
+            # Flush any remaining buffered text as final sentence
+            if self._buffer.strip():
+                await self.push_frame(
+                    TTSSpeakFrame(text=self._buffer.strip()),
+                    direction,
+                )
+                self._buffer = ""
+            await self.push_frame(frame, direction)
+            return
+
+        if isinstance(frame, StartInterruptionFrame):
+            # Discard partial sentence on interruption
+            if self._buffer:
+                logger.debug("SentenceStreamBuffer: discarding %d chars on interruption", len(self._buffer))
+                self._buffer = ""
+            await self.push_frame(frame, direction)
+            return
+
+        # All other frames pass through
+        await self.push_frame(frame, direction)
+
+    async def _flush_sentences(self, direction: FrameDirection):
+        """Extract and emit complete sentences from the buffer."""
+        while True:
+            boundary = self._find_sentence_boundary(self._buffer)
+            if boundary < 0:
+                break
+            sentence = self._buffer[:boundary + 1].strip()
+            self._buffer = self._buffer[boundary + 1:]
+            if sentence:
+                await self.push_frame(
+                    TTSSpeakFrame(text=sentence),
+                    direction,
+                )
+
+    @staticmethod
+    def _find_sentence_boundary(text: str) -> int:
+        """Find the index of the last char of the first complete sentence, or -1.
+
+        Rules:
+        - . ? ! are sentence enders
+        - Skip abbreviations: if the word before . is in _ABBREVIATIONS, skip
+        - Skip ellipsis: ... is not a boundary (but the 3rd dot is buffered)
+        - Skip decimals: digit.digit is not a boundary
+        """
+        i = 0
+        while i < len(text):
+            ch = text[i]
+
+            if ch in '?!':
+                return i
+
+            if ch == '.':
+                # Ellipsis: skip ...
+                if i + 2 < len(text) and text[i + 1] == '.' and text[i + 2] == '.':
+                    i += 3
+                    continue
+
+                # Decimal number: digit.digit
+                if i > 0 and i + 1 < len(text) and text[i - 1].isdigit() and text[i + 1].isdigit():
+                    i += 1
+                    continue
+
+                # Abbreviation: word before period is in known set
+                word_start = i - 1
+                while word_start >= 0 and text[word_start].isalpha():
+                    word_start -= 1
+                word = text[word_start + 1:i].lower()
+                if word in _ABBREVIATIONS:
+                    i += 1
+                    continue
+
+                # Real sentence boundary
+                return i
+
+            i += 1
+
+        return -1
 
 
 class TranscriptCapture(FrameProcessor):
@@ -371,12 +490,18 @@ class ToolCallProcessor(FrameProcessor):
     """Intercepts LLM output, detects JSON tool calls, executes them.
 
     Prompt-based approach for vLLM 0.6.6 (no native tool_choice support).
-    Buffers LLM text tokens. On LLMFullResponseEndFrame:
-    - If JSON tool call found: execute tool, inject result, trigger new LLM turn
-    - If no tool call: replay buffered text downstream to TTS
+
+    Uses early bail-out heuristic for streaming compatibility:
+    - First LLMTextFrame decides the mode for the entire turn
+    - If text starts with { [ or a known tool name → BUFFER mode (full buffering)
+    - Otherwise → STREAM mode (pass frames through immediately to SentenceStreamBuffer)
+    - On LLMFullResponseEndFrame in buffer mode: check for tool call, execute or replay
 
     Place between LLM and TranscriptCapture(assistant) in the pipeline.
     """
+
+    # Prefixes that indicate a tool call (not regular speech)
+    _TOOL_PREFIXES = ('{', '[', '"tool', '{"')
 
     def __init__(
         self,
@@ -398,43 +523,75 @@ class ToolCallProcessor(FrameProcessor):
         self._task = None  # set after task creation via set_task()
         self._buffer: list[LLMTextFrame] = []
         self._text_buffer = ""
+        self._streaming = None  # None = undecided, True = stream, False = buffer
 
     def set_task(self, task):
         self._task = task
+
+    def _looks_like_tool_call(self, text: str) -> bool:
+        """Check if initial text looks like a tool call rather than speech."""
+        stripped = text.lstrip()
+        if not stripped:
+            return False
+        if any(stripped.startswith(p) for p in self._TOOL_PREFIXES):
+            return True
+        # Check for Qwen native format: tool_name{ or tool_name(
+        for tool_name in self._tools:
+            if stripped.startswith(tool_name):
+                return True
+        if stripped.startswith("end_call") or stripped.startswith("transfer_call"):
+            return True
+        return False
 
     async def process_frame(self, frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
         if isinstance(frame, LLMTextFrame):
-            # Buffer tokens — don't pass through yet
-            self._buffer.append(frame)
-            self._text_buffer += frame.text or ""
-            return  # swallow frame
+            text = frame.text or ""
+            self._text_buffer += text
+
+            # First token decides: stream or buffer
+            if self._streaming is None:
+                if self._looks_like_tool_call(self._text_buffer):
+                    self._streaming = False
+                    logger.debug("ToolCallProcessor: buffer mode (tool call pattern)")
+                else:
+                    self._streaming = True
+                    logger.debug("ToolCallProcessor: stream mode (speech)")
+
+            if self._streaming:
+                # Fix numbers inline and pass through immediately
+                fixed = self._fix_numbers_for_tts(text)
+                await self.push_frame(LLMTextFrame(text=fixed), direction)
+            else:
+                # Buffer for tool call detection
+                self._buffer.append(frame)
+            return
 
         if isinstance(frame, LLMFullResponseEndFrame):
-            text = self._text_buffer.strip()
-            tool_call = self._parse_tool_call(text)
+            if self._streaming is False:
+                # Buffer mode: check for tool call
+                text = self._text_buffer.strip()
+                tool_call = self._parse_tool_call(text)
 
-            if tool_call:
-                tool_name = tool_call["tool"]
-                arguments = tool_call.get("arguments", {})
-                logger.info("Tool call detected: %s(%s)", tool_name, arguments)
-                await self._execute_tool(tool_name, arguments)
-                # Don't pass buffered frames or end frame — new LLM turn will generate fresh output
-            else:
-                # No tool call — fix numbers and replay as single frame
-                fixed_text = self._fix_numbers_for_tts(text)
-                if fixed_text != text:
-                    # Emit fixed text as single frame instead of replaying originals
-                    await self.push_frame(LLMTextFrame(text=fixed_text), direction)
+                if tool_call:
+                    tool_name = tool_call["tool"]
+                    arguments = tool_call.get("arguments", {})
+                    logger.info("Tool call detected: %s(%s)", tool_name, arguments)
+                    await self._execute_tool(tool_name, arguments)
                 else:
-                    for buffered_frame in self._buffer:
-                        await self.push_frame(buffered_frame, direction)
+                    # False positive — not actually a tool call, replay as speech
+                    fixed_text = self._fix_numbers_for_tts(text)
+                    await self.push_frame(LLMTextFrame(text=fixed_text), direction)
+                    await self.push_frame(frame, direction)
+            else:
+                # Stream mode: just pass through the end frame
                 await self.push_frame(frame, direction)
 
-            # Reset buffer
+            # Reset for next turn
             self._buffer = []
             self._text_buffer = ""
+            self._streaming = None
             return
 
         # All other frames pass through unchanged
