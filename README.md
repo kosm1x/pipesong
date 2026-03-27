@@ -115,7 +115,7 @@ curl -X POST http://localhost:8080/agents \
 | 5     | Call analysis, monitoring, Grafana           | Not started                                                                                       |
 | 6     | Scale hardening, batch calling, load testing | Not started                                                                                       |
 
-**Total: 18-23 weeks.** See [PLAN.md](PLAN.md) for full details, [PROGRESS.md](docs/PROGRESS.md) for activity tracking.
+**Total: 17-22 weeks.** See [PLAN.md](PLAN.md) for full details, [PROGRESS.md](docs/PROGRESS.md) for activity tracking.
 
 ## Known Issues
 

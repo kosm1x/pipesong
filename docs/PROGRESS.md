@@ -10,7 +10,7 @@ Last updated: 2026-03-27
 | **1 — First Call**            | Pipeline + Telnyx + basic API + recording         | `DONE`        | 100%    |
 | **2 — Multi-Agent + Tools**   | Agent config, routing, function calling, webhooks | `DONE`        | 100%    |
 | **3 — Knowledge Base**        | RAG pipeline, pgvector, retrieval                 | `DONE`        | 90%     |
-| **4a — Latency Optimization** | Instrumentation, sentence streaming, pre-cache    | `NOT STARTED` | 0%      |
+| **4a — Latency Optimization** | Metrics wiring, sentence streaming, VAD tuning    | `NOT STARTED` | 0%      |
 | **4b — Conversation Flows**   | Flow engine, state machine, warm transfer         | `NOT STARTED` | 0%      |
 | **5 — Analysis + Monitoring** | Post-call analysis, Prometheus, Grafana           | `NOT STARTED` | 0%      |
 | **6 — Scale + Hardening**     | Overflow, batch calling, load testing             | `NOT STARTED` | 0%      |
@@ -125,36 +125,30 @@ Last updated: 2026-03-27
 
 ---
 
-## Phase 4a — Latency Optimization (3-4 weeks)
+## Phase 4a — Latency Optimization (2-3 weeks)
 
 **Goal:** p50 <1,000ms with per-turn instrumentation proving it.
-**Exit:** p50 <1,000ms over 100 test calls, proven by `call_latency` table. Sentence streaming measurably reduces e2e vs baseline.
+**Exit:** p50 <1,000ms over 50 test calls, proven by `call_latency` table. Sentence streaming measurably reduces e2e vs baseline.
 
-| #                                     | Activity                                                     | Status        | Notes                                               |
-| ------------------------------------- | ------------------------------------------------------------ | ------------- | --------------------------------------------------- |
-| **Latency Instrumentation (week 1)**  |                                                              |               |                                                     |
-| 4a.1                                  | Timestamp every pipeline stage per turn                      | `NOT STARTED` | vad_end, stt_final, llm_first_token, tts_first_byte |
-| 4a.2                                  | LatencyTracker processor at pipeline boundaries              | `NOT STARTED` | Per-call dict of wall-clock timestamps              |
-| 4a.3                                  | Derived metrics: e2e_ms, stt_ms, llm_ttft_ms, tts_ttfb_ms    | `NOT STARTED` |                                                     |
-| 4a.4                                  | Persist to PostgreSQL (call_latency table)                   | `NOT STARTED` | call_id, turn_index, stage, timestamp_ms            |
-| 4a.5                                  | API: `GET /calls/{id}/latency`                               | `NOT STARTED` | Per-turn breakdown                                  |
-| 4a.6                                  | Aggregation: `GET /agents/{id}/latency` p50/p90/p95/p99      | `NOT STARTED` | Configurable time window                            |
-| 4a.7                                  | Baseline run: 50 test calls                                  | `NOT STARTED` | Establish pre-optimization numbers                  |
-| **Sentence Streaming (week 2-3)**     |                                                              |               |                                                     |
-| 4a.8                                  | SentenceStreamBuffer processor (Spanish-aware boundaries)    | `NOT STARTED` | `.?!` + `¿¡` pairs, abbreviation exclusions         |
-| 4a.9                                  | Remove comma→period hack from SpanishOnlyFilter              | `NOT STARTED` | Real commas = better Kokoro prosody                 |
-| 4a.10                                 | TTS request queuing: emit sentences as TTSSpeakFrames        | `NOT STARTED` | Core LLM↔TTS overlap (100-300ms saving)             |
-| 4a.11                                 | Interruption: cancel pending TTSSpeakFrames + discard buffer | `NOT STARTED` | Extend Pipecat's built-in cancellation              |
-| 4a.12                                 | Measure improvement vs baseline                              | `NOT STARTED` | Target: 100-300ms e2e reduction                     |
-| **Pre-cached Responses (week 3)**     |                                                              |               |                                                     |
-| 4a.13                                 | Generate TTS at agent creation → WAV in MinIO                | `NOT STARTED` | Key: (agent_id, phrase_hash, voice_id)              |
-| 4a.14                                 | PrecacheInterceptor: exact-match → cached audio (0ms TTS)    | `NOT STARTED` | Between SentenceStreamBuffer and TTS                |
-| 4a.15                                 | Cache invalidation on voice change + regenerate API          | `NOT STARTED` | POST /agents/{id}/regenerate-cache                  |
-| 4a.16                                 | Load cached audio into memory at call start                  | `NOT STARTED` | Avoid per-phrase disk reads mid-call                |
-| **Turn-taking Refinement (week 3-4)** |                                                              |               |                                                     |
-| 4a.17                                 | Per-agent interruption_sensitivity (0.0-1.0)                 | `NOT STARTED` | Maps to Smart Turn VAD params                       |
-| 4a.18                                 | InterruptionGuard: suppress VAD during critical speech       | `NOT STARTED` | Disclosure, tool results, pre-cached playback       |
-| 4a.19                                 | Silence reminders after configurable timeout                 | `NOT STARTED` | "¿Sigue ahí?" + graceful end after 2× timeout       |
+| #                                        | Activity                                                     | Status        | Notes                                                         |
+| ---------------------------------------- | ------------------------------------------------------------ | ------------- | ------------------------------------------------------------- |
+| **Latency Instrumentation (week 1)**     |                                                              |               |                                                               |
+| 4a.1                                     | MetricsCollector processor: intercept MetricsFrame + VAD     | `NOT STARTED` | Wire Pipecat's existing TTFB data, don't reimplement          |
+| 4a.2                                     | Add UserBotLatencyObserver to PipelineTask                   | `NOT STARTED` | Built-in per-turn e2e breakdown                               |
+| 4a.3                                     | Persist to PostgreSQL (call_latency table)                   | `NOT STARTED` | call_id, turn_index, stt_ms, llm_ttft_ms, tts_ttfb_ms, e2e_ms |
+| 4a.4                                     | API: `GET /calls/{id}/latency`                               | `NOT STARTED` | Per-turn breakdown                                            |
+| 4a.5                                     | Aggregation: `GET /agents/{id}/latency` p50/p90/p95/p99      | `NOT STARTED` | Configurable time window                                      |
+| 4a.6                                     | Baseline run: 20 calls + comma vs period A/B test            | `NOT STARTED` | Establish numbers + inform SentenceStreamBuffer design        |
+| **Sentence Streaming (week 2)**          |                                                              |               |                                                               |
+| 4a.7                                     | SentenceStreamBuffer processor (Spanish-aware boundaries)    | `NOT STARTED` | `.?!` + `¿¡` pairs, abbreviation exclusions, clause flush TBD |
+| 4a.8                                     | ToolCallProcessor streaming mode (early bail-out heuristic)  | `NOT STARTED` | First tokens decide: `{`/tool name → buffer, else → stream    |
+| 4a.9                                     | TTS request queuing: emit sentences as TTSSpeakFrames        | `NOT STARTED` | Core LLM↔TTS overlap (100-300ms saving)                       |
+| 4a.10                                    | Interruption: cancel pending TTSSpeakFrames + discard buffer | `NOT STARTED` | Extend Pipecat's built-in cancellation                        |
+| 4a.11                                    | Comma→period hack decision based on A/B results              | `NOT STARTED` | Remove if prosody improves, keep if no difference             |
+| 4a.12                                    | Measure improvement vs baseline                              | `NOT STARTED` | Target: 100-300ms e2e reduction                               |
+| **VAD + Interruption Tuning (week 2-3)** |                                                              |               |                                                               |
+| 4a.13                                    | Agent-level vad_stop_secs + vad_confidence columns           | `NOT STARTED` | Nullable, defaults to Pipecat defaults (0.2s, 0.7)            |
+| 4a.14                                    | Add STTMuteFilter: FIRST_SPEECH + FUNCTION_CALL strategies   | `NOT STARTED` | Replaces custom InterruptionGuard — Pipecat built-in          |
 
 ---
 
@@ -164,30 +158,33 @@ Last updated: 2026-03-27
 **Prerequisite:** Phase 4a (instrumentation needed to catch latency regressions from extra LLM calls).
 **Exit:** 5-state appointment booking flow completes e2e. LLM transition evaluation <500ms. Warm transfer bridges two call legs.
 
-| #                                  | Activity                                                        | Status        | Notes                                          |
-| ---------------------------------- | --------------------------------------------------------------- | ------------- | ---------------------------------------------- |
-| **Flow Schema Design (week 1)**    |                                                                 |               |                                                |
-| 4b.1                               | YAML flow schema definition                                     | `NOT STARTED` | initial_state, states, transitions, end        |
-| 4b.2                               | Variable conditions (fast, no LLM)                              | `NOT STARTED` | Evaluated first — free                         |
-| 4b.3                               | LLM conditions (slow, costs a call)                             | `NOT STARTED` | Only when variable conditions can't match      |
-| 4b.4                               | Flow validation at agent creation                               | `NOT STARTED` | Orphan states, missing targets, no-exit states |
-| 4b.5                               | Store validated flow as JSON in agent record                    | `NOT STARTED` | Parse YAML on input                            |
-| **Flow Engine Runtime (week 2-3)** |                                                                 |               |                                                |
-| 4b.6                               | FlowEngine class: state tracking, variables, transition history | `NOT STARTED` | Initialized per call                           |
-| 4b.7                               | Per-state prompt injection (append on entry, remove on exit)    | `NOT STARTED` | Prevents prompt accumulation                   |
-| 4b.8                               | Variable extraction via LLM after each assistant turn           | `NOT STARTED` | Only current state's schema                    |
-| 4b.9                               | Transition evaluation: variable → LLM (ordered)                 | `NOT STARTED` | First match fires                              |
-| 4b.10                              | State-scoped tools: hide unavailable tools per state            | `NOT STARTED` |                                                |
-| 4b.11                              | End states: farewell TTS + EndFrame                             | `NOT STARTED` |                                                |
-| 4b.12                              | Persist flow state to PostgreSQL (call_flow_state table)        | `NOT STARTED` | Debug stuck flows, post-call analysis          |
-| **Flow API (week 3)**              |                                                                 |               |                                                |
-| 4b.13                              | PATCH /agents/{id} accepts flow field (YAML/JSON)               | `NOT STARTED` | Validates before saving                        |
-| 4b.14                              | GET /calls/{id}/flow — execution trace                          | `NOT STARTED` | States, transitions, variables, timestamps     |
-| 4b.15                              | GET /flow-templates — built-in examples                         | `NOT STARTED` | Booking, support ticket, survey                |
-| **Warm Call Transfer (week 3-4)**  |                                                                 |               |                                                |
-| 4b.16                              | Two-leg transfer via Telnyx Call Control API                    | `NOT STARTED` | Context handoff then bridge                    |
-| 4b.17                              | Transfer as flow action (target_number + context_prompt)        | `NOT STARTED` | Flow engine orchestrates                       |
-| 4b.18                              | Fallback: 30s timeout → return to previous state                | `NOT STARTED` |                                                |
+| #                                  | Activity                                                        | Status        | Notes                                           |
+| ---------------------------------- | --------------------------------------------------------------- | ------------- | ----------------------------------------------- |
+| **Flow Schema Design (week 1)**    |                                                                 |               |                                                 |
+| 4b.1                               | YAML flow schema definition                                     | `NOT STARTED` | initial_state, states, transitions, end         |
+| 4b.2                               | Variable conditions (fast, no LLM)                              | `NOT STARTED` | Evaluated first — free                          |
+| 4b.3                               | LLM conditions (slow, costs a call)                             | `NOT STARTED` | Only when variable conditions can't match       |
+| 4b.4                               | Flow validation at agent creation                               | `NOT STARTED` | Orphan states, missing targets, no-exit states  |
+| 4b.5                               | Store validated flow as JSON in agent record                    | `NOT STARTED` | Parse YAML on input                             |
+| **Flow Engine Runtime (week 2-3)** |                                                                 |               |                                                 |
+| 4b.6                               | FlowEngine class: state tracking, variables, transition history | `NOT STARTED` | Initialized per call                            |
+| 4b.7                               | Per-state prompt injection (append on entry, remove on exit)    | `NOT STARTED` | Prevents prompt accumulation                    |
+| 4b.8                               | Variable extraction via LLM after each assistant turn           | `NOT STARTED` | Only current state's schema                     |
+| 4b.9                               | Transition evaluation: variable → LLM (ordered)                 | `NOT STARTED` | First match fires                               |
+| 4b.10                              | State-scoped tools: hide unavailable tools per state            | `NOT STARTED` |                                                 |
+| 4b.11                              | End states: farewell TTS + EndFrame                             | `NOT STARTED` |                                                 |
+| 4b.12                              | Persist flow state to PostgreSQL (call_flow_state table)        | `NOT STARTED` | Debug stuck flows, post-call analysis           |
+| **Flow API (week 3)**              |                                                                 |               |                                                 |
+| 4b.13                              | PATCH /agents/{id} accepts flow field (YAML/JSON)               | `NOT STARTED` | Validates before saving                         |
+| 4b.14                              | GET /calls/{id}/flow — execution trace                          | `NOT STARTED` | States, transitions, variables, timestamps      |
+| 4b.15                              | GET /flow-templates — built-in examples                         | `NOT STARTED` | Booking, support ticket, survey                 |
+| **Warm Call Transfer (week 3-4)**  |                                                                 |               |                                                 |
+| 4b.16                              | Two-leg transfer via Telnyx Call Control API                    | `NOT STARTED` | Context handoff then bridge                     |
+| 4b.17                              | Transfer as flow action (target_number + context_prompt)        | `NOT STARTED` | Flow engine orchestrates                        |
+| 4b.18                              | Fallback: 30s timeout → return to previous state                | `NOT STARTED` |                                                 |
+| **Deferred from 4a**               |                                                                 |               |                                                 |
+| 4b.19                              | Silence reminders after configurable timeout                    | `NOT STARTED` | "¿Sigue ahí?" + graceful end after 2× timeout   |
+| 4b.20                              | Pre-cached responses (if TTS bottleneck confirmed by 4a data)   | `NOT STARTED` | Code-controlled phrases only, skip LLM matching |
 
 ---
 

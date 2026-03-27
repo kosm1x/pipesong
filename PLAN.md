@@ -730,7 +730,7 @@ This phase is pure benchmarking. No infrastructure, no API, no pipeline. Just mo
 
 ---
 
-### Phase 4a — Latency Optimization (3-4 weeks)
+### Phase 4a — Latency Optimization (2-3 weeks)
 
 **Goal:** p50 latency <1,000ms with per-turn instrumentation proving it.
 
@@ -738,41 +738,39 @@ This phase is pure benchmarking. No infrastructure, no API, no pipeline. Just mo
 
 **Latency instrumentation (week 1):**
 
-1. Timestamp every pipeline stage per turn: `vad_end`, `stt_final`, `llm_first_token`, `llm_first_sentence`, `tts_first_byte`, `audio_play`
-2. Custom `LatencyTracker` processor — intercepts frames at each pipeline boundary, records wall-clock timestamps per turn into a per-call dict
-3. Calculate and store derived metrics: `e2e_ms`, `stt_ms`, `llm_ttft_ms`, `llm_first_sentence_ms`, `tts_ttfb_ms`
-4. Persist per-turn latency rows to PostgreSQL (`call_latency` table: `call_id`, `turn_index`, `stage`, `timestamp_ms`)
-5. API: `GET /calls/{id}/latency` — returns per-turn breakdown with derived metrics
-6. Aggregation endpoint: `GET /agents/{id}/latency` — p50/p90/p95/p99 over configurable time window
-7. Baseline run: 50 test calls (mixed Spanish/English) to establish pre-optimization numbers
+Pipecat already emits `MetricsFrame` with per-service TTFB (`TTFBMetricsData`) for STT, LLM, and TTS when `enable_metrics=True` (already set). `UserBotLatencyObserver` provides per-turn e2e breakdown. The work is collection + persistence, not measurement.
 
-**Sentence-level TTS streaming (week 2-3):**
+1. Wire `MetricsCollector` processor — intercepts `MetricsFrame` instances flowing through the pipeline, accumulates per-turn TTFB data (stt, llm, tts) + `TextAggregationMetricsData` into a per-call dict. Also capture `VADUserStoppedSpeakingFrame` timestamp for `vad_end`
+2. Add `UserBotLatencyObserver` to `PipelineTask` observers for e2e per-turn latency
+3. Persist per-turn latency rows to PostgreSQL (`call_latency` table: `call_id`, `turn_index`, `stt_ms`, `llm_ttft_ms`, `tts_ttfb_ms`, `e2e_ms`)
+4. API: `GET /calls/{id}/latency` — returns per-turn breakdown with derived metrics
+5. Aggregation endpoint: `GET /agents/{id}/latency` — p50/p90/p95/p99 over configurable time window
+6. Baseline run: 20 test calls (mixed Spanish/English) to establish pre-optimization numbers. During this run, also A/B test comma→period hack: 10 sentences through Kokoro with commas vs periods at 8kHz, compare prosody and TTFB to inform the SentenceStreamBuffer design (Issue 3)
+
+**Sentence-level TTS streaming (week 2):**
 
 _Current state:_ Pipecat 0.0.106's `TextAggregationMode.SENTENCE` does basic `.?!` boundary detection. Pipesong's `SpanishOnlyFilter` converts commas to periods to force clause-level flushing. This gives ~450ms TTS TTFB — acceptable, but TTS sits idle while the LLM generates each sentence. There is no true LLM↔TTS overlap: the pipeline processes frames sequentially.
 
 _What to build:_
 
-8. `SentenceStreamBuffer` processor — sits between LLM and TTS. Detects sentence boundaries using Spanish-aware rules (`.?!` plus `¿¡` pairs, ellipsis, abbreviation exclusions like "Sr.", "Dra.", "etc."). On boundary: immediately flushes the completed sentence downstream to TTS while continuing to buffer the next sentence from the LLM stream
-9. Remove the comma→period hack from `SpanishOnlyFilter` — the new `SentenceStreamBuffer` handles flushing properly, and real commas produce better Kokoro prosody than fake periods
-10. TTS request queuing: `SentenceStreamBuffer` emits sentences as individual `TTSSpeakFrame`s. Kokoro processes them sequentially — while it generates audio for sentence N, the LLM is already producing sentence N+1. This is the core overlap that saves 100-300ms
-11. Interruption during streaming: when VAD detects user speech mid-response, cancel all pending `TTSSpeakFrame`s in the queue and discard any buffered partial sentence. Pipecat's built-in interruption handling cancels the current TTS frame — extend it to also clear the sentence queue
+7. `SentenceStreamBuffer` processor — sits between SpanishOnlyFilter and TTS. Detects sentence boundaries using Spanish-aware rules (`.?!` plus `¿¡` pairs, ellipsis, abbreviation exclusions like "Sr.", "Dra.", "etc."). On boundary: immediately flushes the completed sentence downstream to TTS while continuing to buffer the next sentence from the LLM stream. Whether to also flush on clause boundaries (commas, semicolons) depends on the baseline A/B test result from step 6
+8. Refactor `ToolCallProcessor` for streaming compatibility — add early bail-out heuristic: first `LLMTextFrame` that starts with `{`, `[`, or a known tool name → buffer mode (existing behavior). Otherwise → streaming passthrough mode, forwarding frames immediately to SentenceStreamBuffer. This prevents ToolCallProcessor's full-response buffering from defeating sentence streaming
+9. TTS request queuing: `SentenceStreamBuffer` emits sentences as individual `TTSSpeakFrame`s. Kokoro processes them sequentially — while it generates audio for sentence N, the LLM is already producing sentence N+1. This is the core overlap that saves 100-300ms
+10. Interruption during streaming: when VAD detects user speech mid-response, cancel all pending `TTSSpeakFrame`s in the queue and discard any buffered partial sentence. Pipecat's built-in interruption handling cancels the current TTS frame — extend it to also clear the sentence queue
+11. Comma→period hack decision: based on baseline A/B results, either remove the hack (if prosody improves and SentenceStreamBuffer handles clause flushing) or keep it alongside SentenceStreamBuffer (if no audible difference at 8kHz)
 12. Measure improvement: compare p50/p95 against the week-1 baseline. Target: 100-300ms reduction in e2e latency
 
-**Pre-cached responses (week 3):**
+**VAD + interruption tuning (week 2-3):**
 
-13. At agent creation: if `precached_phrases` is set, generate TTS audio for each phrase via Kokoro and store as WAV blobs in MinIO keyed by `(agent_id, phrase_hash, voice_id)`
-14. `PrecacheInterceptor` processor — between `SentenceStreamBuffer` and TTS. On each complete sentence: exact-match against cached phrases. Hit → emit cached audio frame directly (0ms TTS). Miss → pass sentence through to Kokoro as normal
-15. Exact match only for v1 — fuzzy matching adds complexity for marginal gain. The LLM can be nudged to use exact cached phrasing via system prompt ("When greeting, say exactly: ...")
-16. Cache invalidation: regenerate all cached phrases when agent's `voice` setting changes. API: `POST /agents/{id}/regenerate-cache`
-17. Load cached audio into memory at call start (not per-phrase disk reads mid-call)
+13. Add `vad_stop_secs` and `vad_confidence` columns to agent table (nullable, defaults to Pipecat defaults: 0.2s stop, 0.7 confidence). Pass to `SileroVADAnalyzer(params=VADParams(...))` at pipeline creation
+14. Add `STTMuteFilter` to pipeline with `FIRST_SPEECH` (suppress interruption during disclosure) + `FUNCTION_CALL` (suppress during tool execution) strategies. Replaces the planned custom `InterruptionGuard` — Pipecat already provides this
 
-**Turn-taking refinement (week 3-4):**
+**Deferred to Phase 4b:**
 
-18. Per-agent `interruption_sensitivity` field (0.0-1.0) — maps to Pipecat Smart Turn's VAD parameters. Low sensitivity = longer silence required before bot responds (good for thoughtful conversations). High = snappier responses (good for transactional flows)
-19. `InterruptionGuard` processor — suppresses VAD interruption events during specific frame sequences: disclosure playback, tool result delivery, pre-cached phrase playback. Prevents the bot from being cut off during critical speech
-20. Silence reminders: configurable `silence_timeout_seconds` per agent. After N seconds of silence, queue `TTSSpeakFrame("¿Sigue ahí?")`. After 2× timeout with no response, end call gracefully. Use a simple asyncio timer reset on each user `TranscriptionFrame`
+- Silence reminders (`silence_timeout_seconds`, "¿Sigue ahí?" + graceful end) — conversation management feature, not latency optimization
+- Pre-cached responses (4a.13–4a.16 in old plan) — low ROI for integration complexity. Exact-match on LLM text has near-zero hit rate. Code-controlled phrases (disclosure, filler) are the only reliable cases, and Kokoro TTFB is least impactful there. Revisit if instrumentation data shows TTS is the dominant bottleneck on specific phrase patterns
 
-**Exit criteria:** p50 latency <1,000ms over 100 test calls (mixed Spanish/English), proven by instrumentation data from the `call_latency` table. Latency breakdown visible per call via API. Sentence streaming measurably reduces e2e latency vs baseline.
+**Exit criteria:** p50 latency <1,000ms over 50 test calls (mixed Spanish/English), proven by instrumentation data from the `call_latency` table. Latency breakdown visible per call via API. Sentence streaming measurably reduces e2e latency vs baseline.
 
 ---
 
@@ -883,12 +881,12 @@ _What to build:_
 | 1 — First call            | Pipeline + Telnyx + basic API                  | 2-3 weeks | 3-4 weeks   |
 | 2 — Multi-agent + tools   | Agent config, routing, function calling        | 2-3 weeks | 5-7 weeks   |
 | 3 — Knowledge base        | RAG pipeline, pgvector, retrieval              | 2 weeks   | 7-9 weeks   |
-| 4a — Latency optimization | Instrumentation, sentence streaming, pre-cache | 3-4 weeks | 10-13 weeks |
-| 4b — Conversation flows   | Flow engine, state machine, warm transfer      | 3-4 weeks | 13-17 weeks |
-| 5 — Analysis + monitoring | Post-call analysis, Prometheus, Grafana        | 2 weeks   | 15-19 weeks |
-| 6 — Scale + hardening     | Overflow, batch calling, load testing          | 3-4 weeks | 18-23 weeks |
+| 4a — Latency optimization | Metrics wiring, sentence streaming, VAD tuning | 2-3 weeks | 9-12 weeks  |
+| 4b — Conversation flows   | Flow engine, state machine, warm transfer      | 3-4 weeks | 12-16 weeks |
+| 5 — Analysis + monitoring | Post-call analysis, Prometheus, Grafana        | 2 weeks   | 14-18 weeks |
+| 6 — Scale + hardening     | Overflow, batch calling, load testing          | 3-4 weeks | 17-22 weeks |
 
-**Total: 18-23 weeks.** The old v3 estimate of 16-21 weeks bundled latency optimization and conversation flows into a single 4-6 week phase, which was optimistic. Splitting them adds 2 weeks of honest overhead but reduces risk — latency wins ship independently and instrumentation is in place before flows add their own LLM calls.
+**Total: 17-22 weeks.** Phase 4a was reduced from 3-4 weeks to 2-3 weeks after discovering Pipecat's built-in metrics system (eliminates custom TTFB instrumentation), deprioritizing pre-cached responses to 4b (low ROI), and replacing custom InterruptionGuard with Pipecat's STTMuteFilter.
 
 **Parallelizable:** Phase 5 (monitoring) can start during Phase 4b — the latency instrumentation from 4a provides the foundation that Phase 5's Prometheus metrics build on. Phase 4b (flows) has no dependency on Phase 5, so they can run concurrently. Phase 0 (benchmarks) is prerequisite for everything — don't skip it.
 
