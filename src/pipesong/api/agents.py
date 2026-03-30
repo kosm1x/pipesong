@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,8 +30,8 @@ class AgentCreate(BaseModel):
     knowledge_base_id: uuid.UUID | None = None
     kb_chunk_count: int = 3
     kb_similarity_threshold: float = 0.5
-    vad_stop_secs: float | None = None
-    vad_confidence: float | None = None
+    vad_stop_secs: float | None = Field(default=None, ge=0.05, le=5.0)
+    vad_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class AgentUpdate(BaseModel):
@@ -50,8 +50,8 @@ class AgentUpdate(BaseModel):
     knowledge_base_id: uuid.UUID | None = None
     kb_chunk_count: int | None = None
     kb_similarity_threshold: float | None = None
-    vad_stop_secs: float | None = None
-    vad_confidence: float | None = None
+    vad_stop_secs: float | None = Field(default=None, ge=0.05, le=5.0)
+    vad_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
 class AgentResponse(BaseModel):

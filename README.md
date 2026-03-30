@@ -6,9 +6,9 @@ A cost-efficient, low-latency voice AI engine for handling hundreds to thousands
 
 ## Current Status
 
-**Phase 1 COMPLETE — Voice pipeline fully operational (2026-03-24).**
+**Phase 4a IN PROGRESS — All code complete, GPU validation pending (2026-03-30).**
 
-Real phone conversations in Spanish. ~10-turn tech support calls completing naturally. Recording disclosure, transcript persistence, call recording, and STT error handling all working. Latency ~830ms.
+Phases 0-3 done and verified with live calls. Phase 4a adds per-turn latency instrumentation, Spanish-aware sentence streaming, ToolCallProcessor early bail-out, STTMuteFilter for disclosure/tool execution, and per-agent VAD tuning. QA audit (11 findings) resolved.
 
 Measured latency: Deepgram STT 260ms + Qwen LLM 120ms + Kokoro TTS 450ms = **~830ms total**.
 
@@ -52,10 +52,14 @@ Phone Call → Telnyx (PSTN + WebSocket audio)
 FastAPI + Pipecat Pipeline
   │
   ├─ Deepgram STT (cloud, streaming, 220ms)
+  ├─ STTMuteFilter (suppress interruption during disclosure/tools)
+  ├─ RAGProcessor (pgvector KB retrieval, 11-32ms)
   ├─ Qwen 2.5 7B AWQ via vLLM (local GPU, 110ms TTFB)
+  ├─ ToolCallProcessor (streaming mode + early bail-out)
   ├─ SpanishOnlyFilter (strips CJK from Qwen output)
-  ├─ TranscriptCapture (user + assistant → PostgreSQL)
+  ├─ SentenceStreamBuffer (Spanish-aware sentence boundaries)
   ├─ Kokoro TTS em_alex (local, 389-554ms in pipeline)
+  ├─ MetricsCollector (per-turn TTFB → call_latency table)
   ├─ AudioBufferProcessor (call recording → WAV → MinIO)
   └─ Silero VAD + Pipecat Smart Turn v3
 
@@ -110,7 +114,7 @@ curl -X POST http://localhost:8080/agents \
 | 1     | First phone call with AI agent               | **Done** — disclosure + transcript + recording + STT error logging                                |
 | 2     | Multi-agent routing, tools, webhooks         | **Done** — tool calling + webhooks (HMAC) + outbound calls + end_call/transfer_call + audit fixes |
 | 3     | Knowledge base (RAG)                         | **Done** — pgvector + multilingual-e5-small, 11-32ms retrieval, KB CRUD + document upload         |
-| 4a    | Latency optimization                         | Not started                                                                                       |
+| 4a    | Latency optimization                         | **In progress** — code done, GPU validation pending (3 items)                                     |
 | 4b    | Conversation flows                           | Not started                                                                                       |
 | 5     | Call analysis, monitoring, Grafana           | Not started                                                                                       |
 | 6     | Scale hardening, batch calling, load testing | Not started                                                                                       |

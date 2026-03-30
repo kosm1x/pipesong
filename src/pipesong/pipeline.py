@@ -147,8 +147,8 @@ def create_pipeline(
     tool_processor = None
     processors = [
         transport.input(),
-        stt_mute,
         stt,
+        stt_mute,  # After STT: intercepts TranscriptionFrame/InterruptionFrame
     ]
     if call_id and session_factory:
         # User capture between STT and aggregator (catches TranscriptionFrame)
@@ -204,3 +204,9 @@ def create_pipeline(
     )
 
     return task, tool_processor
+
+
+async def cleanup_pipeline(tool_processor: "ToolCallProcessor | None"):
+    """Close resources created by create_pipeline. Call in the WebSocket finally block."""
+    if tool_processor and tool_processor._tool_executor:
+        await tool_processor._tool_executor.close()

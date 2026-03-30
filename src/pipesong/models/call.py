@@ -34,7 +34,7 @@ class CallLatency(Base):
     llm_ttft_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     tts_ttfb_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     e2e_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
 
 class Transcript(Base):

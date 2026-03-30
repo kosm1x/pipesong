@@ -1,6 +1,6 @@
 # Pipesong — Advance vs. Scope
 
-Last updated: 2026-03-27
+Last updated: 2026-03-30
 
 ## Overview
 
@@ -149,6 +149,7 @@ Last updated: 2026-03-27
 | **VAD + Interruption Tuning (week 2-3)** |                                                              |               |                                                                |
 | 4a.13                                    | Agent-level vad_stop_secs + vad_confidence columns           | `DONE`        | Nullable columns on Agent, passed to SileroVADAnalyzer         |
 | 4a.14                                    | Add STTMuteFilter: FIRST_SPEECH + FUNCTION_CALL strategies   | `DONE`        | Suppresses interruption during disclosure + tool execution     |
+| 4a.15                                    | QA audit: 11 findings (1H, 5M, 5L)                           | `DONE`        | All fixed 2026-03-30. See `docs/audit-phase4a-2026-03-30.md`   |
 
 ---
 
@@ -279,3 +280,4 @@ Last updated: 2026-03-27
 | 2026-03-24 | Prosody refinement needed              | `OPEN`      | Kokoro needs slightly more pause after periods and commas. Tune voice speed or add silence frames. Minor polish.                                                   |
 | 2026-03-23 | Pipecat v0.0.106 API changes           | `INFO`      | Many breaking changes from older docs. All resolved.                                                                                                               |
 | 2026-03-24 | TensorDock GPU running                 | `INFO`      | Instance running at $0.35/hr. Stop when done.                                                                                                                      |
+| 2026-03-30 | Phase 4a QA audit: 11 findings         | `RESOLVED`  | H1: STTMuteFilter placement. M1-M5: resource leak, index, validation, deploy, O(n\*m). L1-L5: whitespace, imports, naming, docstring. All fixed.                   |

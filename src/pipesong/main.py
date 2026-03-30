@@ -25,7 +25,7 @@ from sqlalchemy import select
 from pipesong.config import settings
 from pipesong.models.agent import Agent
 from pipesong.models.call import Call, Transcript
-from pipesong.pipeline import create_pipeline
+from pipesong.pipeline import cleanup_pipeline, create_pipeline
 from pipesong.services.database import async_session, engine, init_db
 from pipesong.services.storage import get_minio_client, upload_recording_async
 from pipesong.services.webhooks import fire_webhook
@@ -108,6 +108,7 @@ async def websocket_endpoint(websocket: WebSocket):
     recorded_audio = {}
     agent_webhook_url = None
     agent_webhook_secret = None
+    tool_processor = None
     logger.info("WebSocket connected — call_id=%s outbound=%s", call_id, is_outbound)
 
     try:
@@ -263,6 +264,12 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.error("Call %s: error — %s", call_id, e, exc_info=True)
     finally:
+        # Close ToolExecutor HTTP client (M1 — prevent TCP connection leak)
+        try:
+            await cleanup_pipeline(tool_processor)
+        except Exception:
+            pass
+
         try:
             async with async_session() as session:
                 call = await session.get(Call, call_id)

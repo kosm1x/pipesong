@@ -152,7 +152,7 @@ class MetricsCollector(FrameProcessor):
         metrics = self._current_turn
         self._current_turn = {}
 
-        # Compute e2e as sum of available components
+        # Sum of component TTFBs (approximation — excludes queue/network/buffering time)
         components = [metrics.get("stt_ms"), metrics.get("llm_ttft_ms"), metrics.get("tts_ttfb_ms")]
         available = [c for c in components if c is not None]
         e2e = sum(available) if available else None
@@ -197,7 +197,7 @@ class SentenceStreamBuffer(FrameProcessor):
     This is the core LLM↔TTS overlap mechanism: while Kokoro generates audio
     for sentence N, the LLM is already producing sentence N+1 into this buffer.
 
-    Sentence boundaries: .?! and ¿¡ pair closings.
+    Sentence boundaries: . ? ! (closing marks only — inverted ¿¡ appear at sentence starts).
     Excludes: abbreviations (Sr., Dra., etc.), ellipsis (...), decimal numbers.
 
     On interruption (StartInterruptionFrame): discards buffered partial sentence
@@ -460,22 +460,34 @@ TOOL_CALL_NATIVE_RE = re.compile(r'(end_call|transfer_call|[a-z_]+)\s*\(?\s*(\{[
 
 
 def _extract_json_tool_call(text: str) -> dict | None:
-    """Extract {"tool": ..., "arguments": ...} from text using progressive json.loads.
+    """Extract {"tool": ..., "arguments": ...} from text using balanced-brace extraction.
 
-    Handles nested JSON in arguments (unlike regex). Scans for every '{' and tries
-    to parse from that position.
+    Finds the outermost {...} pair via brace counting, then json.loads once.
+    Falls back to scanning up to 5 '{' positions to handle leading text.
     """
+    max_scans = 5
+    scans = 0
     for i, ch in enumerate(text):
         if ch == '{':
-            # Try progressively longer substrings from this position
-            for j in range(len(text), i, -1):
-                candidate = text[i:j]
-                try:
-                    parsed = json.loads(candidate)
-                    if isinstance(parsed, dict) and "tool" in parsed and "arguments" in parsed:
-                        return parsed
-                except (json.JSONDecodeError, ValueError):
-                    continue
+            scans += 1
+            if scans > max_scans:
+                break
+            # Find matching closing brace via depth counting
+            depth = 0
+            for j in range(i, len(text)):
+                if text[j] == '{':
+                    depth += 1
+                elif text[j] == '}':
+                    depth -= 1
+                    if depth == 0:
+                        candidate = text[i:j + 1]
+                        try:
+                            parsed = json.loads(candidate)
+                            if isinstance(parsed, dict) and "tool" in parsed and "arguments" in parsed:
+                                return parsed
+                        except (json.JSONDecodeError, ValueError):
+                            pass
+                        break
     return None
 
 FILLER_PHRASES = [
@@ -550,8 +562,10 @@ class ToolCallProcessor(FrameProcessor):
             text = frame.text or ""
             self._text_buffer += text
 
-            # First token decides: stream or buffer
+            # Decide mode once we have non-whitespace content
             if self._streaming is None:
+                if not self._text_buffer.strip():
+                    return  # Wait for non-whitespace before deciding
                 if self._looks_like_tool_call(self._text_buffer):
                     self._streaming = False
                     logger.debug("ToolCallProcessor: buffer mode (tool call pattern)")
