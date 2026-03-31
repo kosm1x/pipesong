@@ -697,7 +697,26 @@ Start
 
 ---
 
-## Appendix: Sources
+## Appendix A: Evaluated but Not Recommended
+
+### Scicom Multilingual-TTS (Qwen3 + NeuCodec fine-tune)
+
+- [GitHub](https://github.com/Scicom-AI-Enterprise-Organization/Multilingual-TTS), [Production API](https://github.com/Scicom-AI-Enterprise-Organization/TTS-API-Neucodec)
+- Models: [0.6B Base](https://huggingface.co/Scicom-intl/Multilingual-TTS-0.6B-Base), [1.7B Base](https://huggingface.co/Scicom-intl/Multilingual-TTS-1.7B-Base), [0.6B Expressive](https://huggingface.co/Scicom-intl/Multilingual-Expressive-TTS-0.6B), [1.7B Expressive](https://huggingface.co/Scicom-intl/Multilingual-Expressive-TTS-1.7B)
+- 150+ languages, 76 evaluated. Spanish CER: 0.024 (1.7B Expressive), MOS: 3.19. Voice cloning speaker similarity (es): 0.57.
+- **Why not**: No license declared (commercial blocker). Latency not competitive (2.16s avg on H100 at 50 concurrent, RTF ~1.1 on RTX 3090 Ti). Malaysian-centric text normalization. Qwen3-TTS has better Spanish voice cloning (0.814 vs 0.568 similarity) and lower latency (101ms TTFP).
+- **Worth revisiting for**: Muon+AdamW training recipe (10x LR on 2D weights), expressive conditioning via natural language descriptions (`<|description|>` token), dynamic batching + CUDA graphs patterns in TTS-API-Neucodec, synthetic description pipeline (Whisper + emotion2vec + PENN pitch + Qwen2.5-72B).
+
+### LongCat-AudioDiT (Meituan, diffusion-based TTS)
+
+- [GitHub](https://github.com/meituan-longcat/LongCat-AudioDiT), [ComfyUI wrapper](https://github.com/Saganaki22/ComfyUI-LongCat-AudioDIT-TTS), [1B model](https://huggingface.co/meituan-longcat/LongCat-AudioDiT-1B), [3.5B model](https://huggingface.co/meituan-longcat/LongCat-AudioDiT-3.5B)
+- SOTA voice cloning on ZH (SIM 0.818, beating Seed-DiT). 1B and 3.5B variants. MIT license.
+- **Why not**: Chinese/English only — no Spanish training data. No streaming — diffusion requires 16 ODE steps (32 transformer passes) before any audio output, yielding 1-4s TTFB. 1B model is 5.68 GB F32.
+- **Worth revisiting for**: Adaptive Projection Guidance (APG) technique for improved voice cloning (replaces CFG). Wav-VAE operating directly in waveform latent space (eliminates vocoder artifacts). If Meituan releases a multilingual variant with chunked decoding, reassess.
+
+---
+
+## Appendix B: Sources
 
 - Supertonic 2: [GitHub](https://github.com/supertone-inc/supertonic), [HuggingFace](https://huggingface.co/Supertone/supertonic-2), [arXiv:2503.23108](https://arxiv.org/abs/2503.23108)
 - Qwen3-TTS: [GitHub](https://github.com/QwenLM/Qwen3-TTS), [HuggingFace](https://huggingface.co/collections/Qwen/qwen3-tts), [arXiv:2601.15621](https://arxiv.org/abs/2601.15621)
