@@ -4,7 +4,7 @@
 
 ## State
 
-- **Branch:** `flux-pipecat1x` (tip `a2000e6`), pushed to `kosm1x/pipesong`. Flux + Pipecat 1.x **APPLIED, UNVALIDATED, NOT merged.**
+- **Branch:** `flux-pipecat1x` (tip `ce64176`), pushed to `kosm1x/pipesong`. Flux + Pipecat 1.x **APPLIED, UNVALIDATED, NOT merged.**
 - **What changed:** Deepgram Nova-3 → Deepgram **Flux** (`flux-general-multi`, integrated transcription + end-of-turn); Pipecat `0.0.106` → `1.4.0`; Silero VAD + Smart Turn → `ExternalUserTurnStrategies`. Plan + QA gate in `docs/upgrade-flux-pipecat1x-2026-06-17.md`.
 - **Blocking gate C1:** does Flux accept **8 kHz** telephony? Telnyx sends 8 kHz PCMU; Flux examples use 16 kHz. **Not GPU-dependent** — settle it any time with the probe.
 - **Merge-watch:** cloud routine `trig_01XhS4LBYGvTynndAwwkvkx4` (daily 21:11 UTC) flips to MERGED automatically once the branch lands on `main`.
