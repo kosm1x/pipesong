@@ -1,5 +1,8 @@
 # Core pipeline
-pipecat-ai[websocket,deepgram,kokoro,silero,openai]==0.0.106
+# UPGRADE (branch flux-pipecat1x, 2026-06-17): 0.0.106 -> 1.x for DeepgramFluxSTTService.
+# UNVALIDATED — pin verified on PyPI (latest 1.4.0); confirm extra names + that Flux replaces
+# the dropped `silero` extra before merge. See docs/upgrade-flux-pipecat1x-2026-06-17.md.
+pipecat-ai[websocket,deepgram,kokoro,openai]==1.4.0
 
 # Web framework
 fastapi==0.115.12

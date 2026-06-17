@@ -1,13 +1,13 @@
 """Pipecat voice pipeline factory.
 
 Creates a configured pipeline for each incoming call:
-  Audio In → Deepgram STT → LLM Context → vLLM → Kokoro TTS → Audio Out
+  Audio In → Deepgram Flux STT (transcription + EOT) → LLM Context → vLLM → Kokoro TTS → Audio Out
 
-Based on official Pipecat Telnyx chatbot example (v0.0.106).
+Targets Pipecat 1.x. Turn-taking is owned by Deepgram Flux (no local VAD).
+UNVALIDATED branch (flux-pipecat1x) — see docs/upgrade-flux-pipecat1x-2026-06-17.md.
 """
 import logging
 
-from pipecat.audio.vad.silero import SileroVADAnalyzer, VADParams
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -16,7 +16,8 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
-from pipecat.services.deepgram.stt import DeepgramSTTService
+from pipecat.turns.user_turn_strategies import ExternalUserTurnStrategies
+from pipecat.services.deepgram.flux import DeepgramFluxSTTService
 from pipecat.services.kokoro.tts import KokoroTTSService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.tts_service import TextAggregationMode
@@ -58,16 +59,23 @@ def create_pipeline(
 ) -> tuple["PipelineTask", "ToolCallProcessor | None"]:
     """Build a Pipecat pipeline for a single call."""
 
-    # STT — Deepgram streaming
-    stt = DeepgramSTTService(
+    # STT — Deepgram Flux (integrated transcription + end-of-turn detection).
+    # NOTE: Flux REPLACES Nova-3 entirely (one model does transcription AND turn-taking).
+    # UNVALIDATED on this codebase — gate on a Flux-multi vs Nova-3-es Spanish WER A/B and
+    # confirm Flux accepts 8 kHz telephony audio. See docs/upgrade-flux-pipecat1x-2026-06-17.md.
+    stt = DeepgramFluxSTTService(
         api_key=settings.deepgram_api_key,
-        audio_passthrough=True,
-        sample_rate=8000,
-        settings=DeepgramSTTService.Settings(
-            language=language,
-            model="nova-3",
-            smart_format=True,
-            interim_results=True,
+        sample_rate=8000,            # VERIFY: Flux accepts 8 kHz telephony input
+        flux_encoding="linear16",
+        should_interrupt=True,       # Flux drives barge-in (replaces Silero's role)
+        settings=DeepgramFluxSTTService.Settings(
+            model="flux-general-multi",   # Spanish via the multilingual model
+            language_hints=[language],    # bias toward the agent language (es)
+            eot_threshold=0.7,            # 0.5-0.9; lower = faster turns, more false ends
+            # eager_eot_threshold left OFF (Flux default): it speeds responses but triggers
+            # extra speculative LLM calls — a cost regression on a <$0.03/min product.
+            # Enable + A/B only after the cost baseline (see upgrade doc §6 / W3).
+            eot_timeout_ms=5000,
         ),
     )
 
@@ -114,19 +122,22 @@ def create_pipeline(
         ),
     )
 
-    # Context + VAD on user aggregator (official pattern)
-    # Use agent-level VAD overrides if provided, otherwise Pipecat defaults
-    vad_params = VADParams()
-    if vad_stop_secs is not None:
-        vad_params.stop_secs = vad_stop_secs
-    if vad_confidence is not None:
-        vad_params.confidence = vad_confidence
-
+    # Turn-taking is owned by Deepgram Flux (server-side EOT), so the user aggregator
+    # uses ExternalUserTurnStrategies instead of a local Silero VAD analyzer.
+    # NOTE: the agent-level vad_stop_secs / vad_confidence overrides are now INERT for Flux
+    # agents — tune turn behaviour via the STT eot_threshold / eager_eot_threshold instead
+    # (future: map those agent columns onto the Flux EOT params).
+    if vad_stop_secs is not None or vad_confidence is not None:
+        logger.warning(
+            "Agent vad_stop_secs/vad_confidence are IGNORED under Deepgram Flux "
+            "(Flux owns turn-taking). Tune eot_threshold/eager_eot_threshold instead. "
+            "TODO: map these agent columns onto Flux EOT params before merge (audit S1)."
+        )
     context = LLMContext()
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
         user_params=LLMUserAggregatorParams(
-            vad_analyzer=SileroVADAnalyzer(sample_rate=8000, params=vad_params),
+            user_turn_strategies=ExternalUserTurnStrategies(),
         ),
     )
 
