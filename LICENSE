@@ -1,21 +1,35 @@
-MIT License
+Copyright (c) 2026 VoxPopulai. All Rights Reserved.
 
-Copyright (c) 2026 VoxPopulai
+PROPRIETARY AND CONFIDENTIAL — NOT OPEN SOURCE.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software, including all source code, documentation, designs, models,
+configuration, and related materials in this repository (collectively, the
+"Software"), is the confidential and proprietary property of VoxPopulai
+(the "Company").
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+No license, right, or permission of any kind is granted, whether by
+implication, estoppel, or otherwise. Without the prior express written
+permission of the Company, no person or entity may, in whole or in part, by
+any means:
+
+  - copy, reproduce, or store the Software;
+  - modify, adapt, translate, or create derivative works of the Software;
+  - publish, distribute, disclose, sublicense, sell, rent, lease, or transfer
+    the Software; or
+  - use the Software for any purpose, commercial or otherwise.
+
+Access to this repository does not constitute a grant of any of the foregoing
+rights. Unauthorized access, use, reproduction, or distribution is strictly
+prohibited and may result in civil liability and criminal penalties.
+
+Third-party components referenced or used by the Software remain governed by
+their own respective licenses.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COMPANY BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For licensing inquiries, contact VoxPopulai.

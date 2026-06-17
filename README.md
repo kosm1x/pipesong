@@ -131,4 +131,5 @@ curl -X POST http://localhost:8080/agents \
 
 ## License
 
-MIT — Copyright (c) 2026 VoxPopulai
+**Proprietary — Copyright (c) 2026 VoxPopulai. All Rights Reserved.** Not open
+source; no license granted. See [LICENSE](LICENSE).
