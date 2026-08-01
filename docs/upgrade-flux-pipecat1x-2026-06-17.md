@@ -143,6 +143,12 @@ Knock-on: the Phase 4a per-agent `vad_stop_secs` / `vad_confidence` columns beco
 
 ## 8. Branch status + QA audit (2026-06-17)
 
+> **SUPERSEDED 2026-08-01 by `docs/REPROBE-2026-08-01.md` §2**, which re-probed every gate
+> item: C1 (8 kHz) and W1 (Kokoro language string) are **CLOSED**; item 3 (install +
+> import-smoke) **would have FAILED** — the branch imports `STTMuteFilter` (removed in
+> pipecat 1.0) and uses a package-level flux import that doesn't resolve. The "syntax-only
+> check passed" claim below verified compilation, not importability. Pin target is now 1.7.0.
+
 _Branch rebuilt cleanly from `main` via the Python ship process (`/ship-it-py`): env recon → static-only checks → carried-forward qa-audit → docs → commit. Supersedes the earlier `/ship-it` attempt (commit `365d221`)._
 
 **Applied on branch `flux-pipecat1x` — UNVALIDATED (no GPU, pipecat 1.x not installed here, no test suite). Syntax-only check passed; not run, not deployed, not merged. Do NOT merge until the gate below passes on the TensorDock box.**

@@ -2,11 +2,18 @@
 
 **Paused 2026-06-17.** Everything is staged; the only blocker is **no GPU box** (TensorDock had no availability). Pick up here the moment a replacement GPU is up.
 
+> **UPDATE 2026-08-01 — read `docs/REPROBE-2026-08-01.md` FIRST.** Full ecosystem reprobe:
+> **C1 is CLOSED by documentation** (Flux quickstart now lists 8 kHz + mulaw as supported), W1
+> (Kokoro `language="es"`) closed by research, and the branch has **two install-time breaks**
+> (`STTMuteFilter` removed in pipecat 1.0; flux import needs the `.stt` submodule) that must be
+> fixed in its Phase 0 — which runs on this VPS, **no GPU needed**. Pin target is now pipecat
+> **1.7.0**; vLLM/native-tools modernization is its Phase 3, post-merge.
+
 ## State
 
 - **Branch:** `flux-pipecat1x` (use the branch HEAD — `git checkout flux-pipecat1x && git pull --ff-only`), pushed to `kosm1x/pipesong`. Flux + Pipecat 1.x **APPLIED, UNVALIDATED, NOT merged.**
 - **What changed:** Deepgram Nova-3 → Deepgram **Flux** (`flux-general-multi`, integrated transcription + end-of-turn); Pipecat `0.0.106` → `1.4.0`; Silero VAD + Smart Turn → `ExternalUserTurnStrategies`. Plan + QA gate in `docs/upgrade-flux-pipecat1x-2026-06-17.md`.
-- **Blocking gate C1:** does Flux accept **8 kHz** telephony? Telnyx sends 8 kHz PCMU; Flux examples use 16 kHz. **Not GPU-dependent** — settle it any time with the probe.
+- **Blocking gate C1: CLOSED 2026-08-01 (documented-yes).** Deepgram's Flux quickstart explicitly lists raw `sample_rate` 8000 and `mulaw` encoding as supported. `scripts/flux_8k_probe.py` is now an optional live confirmation, not a gate.
 - **Merge-watch:** cloud routine `trig_01XhS4LBYGvTynndAwwkvkx4` (daily 21:11 UTC) flips to MERGED automatically once the branch lands on `main`.
 
 ## Validation kit already on the branch
