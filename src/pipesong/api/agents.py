@@ -3,12 +3,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pipesong.models.agent import Agent
 from pipesong.models.call import Call, CallLatency
+from pipesong.pipeline import _FLUX_DEFAULT_EOT_THRESHOLD
 from pipesong.services.database import get_session
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -30,8 +31,21 @@ class AgentCreate(BaseModel):
     knowledge_base_id: uuid.UUID | None = None
     kb_chunk_count: int = 3
     kb_similarity_threshold: float = 0.5
-    vad_stop_secs: float | None = Field(default=None, ge=0.05, le=5.0)
-    vad_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    # Flux end-of-turn tuning (replaces Silero-era vad_stop_secs/vad_confidence).
+    # None = Flux defaults (eot 0.7, timeout 5000, eager OFF — eager costs extra LLM calls).
+    eot_threshold: float | None = Field(default=None, ge=0.5, le=0.9)
+    eager_eot_threshold: float | None = Field(default=None, ge=0.3, le=0.9)
+    eot_timeout_ms: int | None = Field(default=None, ge=500, le=10000)
+
+    @model_validator(mode="after")
+    def _eager_le_eot(self):
+        if (
+            self.eager_eot_threshold is not None
+            and self.eot_threshold is not None
+            and self.eager_eot_threshold > self.eot_threshold
+        ):
+            raise ValueError("eager_eot_threshold must be <= eot_threshold (Flux rejects the pair)")
+        return self
 
 
 class AgentUpdate(BaseModel):
@@ -50,8 +64,22 @@ class AgentUpdate(BaseModel):
     knowledge_base_id: uuid.UUID | None = None
     kb_chunk_count: int | None = None
     kb_similarity_threshold: float | None = None
-    vad_stop_secs: float | None = Field(default=None, ge=0.05, le=5.0)
-    vad_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    eot_threshold: float | None = Field(default=None, ge=0.5, le=0.9)
+    eager_eot_threshold: float | None = Field(default=None, ge=0.3, le=0.9)
+    eot_timeout_ms: int | None = Field(default=None, ge=500, le=10000)
+
+    @model_validator(mode="after")
+    def _eager_le_eot(self):
+        # Only validates the pair when BOTH appear in this payload; a partial update
+        # can still leave eager > eot against the stored row — create_pipeline drops
+        # eager at call time in that case rather than breaking the live call.
+        if (
+            self.eager_eot_threshold is not None
+            and self.eot_threshold is not None
+            and self.eager_eot_threshold > self.eot_threshold
+        ):
+            raise ValueError("eager_eot_threshold must be <= eot_threshold (Flux rejects the pair)")
+        return self
 
 
 class AgentResponse(BaseModel):
@@ -70,8 +98,9 @@ class AgentResponse(BaseModel):
     knowledge_base_id: uuid.UUID | None
     kb_chunk_count: int
     kb_similarity_threshold: float
-    vad_stop_secs: float | None
-    vad_confidence: float | None
+    eot_threshold: float | None
+    eager_eot_threshold: float | None
+    eot_timeout_ms: int | None
 
     model_config = {"from_attributes": True}
 
@@ -114,7 +143,22 @@ async def update_agent(
     agent = await session.get(Agent, agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    for field, value in data.model_dump(exclude_unset=True).items():
+    delta = data.model_dump(exclude_unset=True)
+
+    # Cross-field rule against the MERGED state, not just the payload — a partial
+    # update (e.g. only eager_eot_threshold) must not persist a pair Flux rejects
+    # and the pipeline would silently drop (QA 2026-08-04 Phase 1 W2).
+    merged_eager = delta.get("eager_eot_threshold", agent.eager_eot_threshold)
+    merged_eot = delta.get("eot_threshold", agent.eot_threshold)
+    effective_eot = merged_eot if merged_eot is not None else _FLUX_DEFAULT_EOT_THRESHOLD
+    if merged_eager is not None and merged_eager > effective_eot:
+        raise HTTPException(
+            status_code=422,
+            detail="eager_eot_threshold must be <= eot_threshold "
+            f"(merged state: eager={merged_eager}, effective eot={effective_eot})",
+        )
+
+    for field, value in delta.items():
         setattr(agent, field, value)
     await session.commit()
     await session.refresh(agent)

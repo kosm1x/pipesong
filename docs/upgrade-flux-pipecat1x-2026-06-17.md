@@ -167,7 +167,7 @@ Fixed in-branch: eager-EOT left OFF (cost regression avoided); `vad_*` now logs 
 4. [ ] **C1 (blocking): confirm Flux accepts 8 kHz `linear16`** — Telnyx delivers 8 kHz PCMU; all Flux examples use 16 kHz. If Flux needs 16 kHz, serializer must upsample or this is dead.
 5. [ ] **W1: confirm `KokoroTTSService.Settings(language="es")` constructs** under 1.x (docs example uses `Language.ES` enum) — switch if it raises.
 6. [ ] **W4: confirm call recording still captures caller audio** (the old `audio_passthrough=True` flag was dropped).
-7. [ ] **S1: decide `vad_stop_secs`/`vad_confidence`** — map onto `eot_threshold`/`eager_eot_threshold` or remove from API+DB so operators aren't silently no-op'd.
+7. [x] **S1: CLOSED 2026-08-04 (REPROBE Phase 1)** — `vad_stop_secs`/`vad_confidence` replaced by `eot_threshold`/`eager_eot_threshold`/`eot_timeout_ms` across model+API+pipeline (bounds enforced, merged-state `eager<=eot` check on PATCH, call-time drop guard); persistent DBs: `scripts/migrations/2026-08-04-agent-eot-columns.sql` (apply BEFORE deploying).
 8. [ ] **I1: re-baseline `stt_ms`** — Flux EOT-based latency is not comparable to Nova-3-final.
 9. [ ] Flux pricing vs $0.0043/min Nova-3 + **Flux-multi vs Nova-3-es Spanish WER A/B** — go/no-go on transcription quality.
 10. [ ] Then update README stack table + PROGRESS.md with measured results.

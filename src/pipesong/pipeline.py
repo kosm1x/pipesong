@@ -43,6 +43,11 @@ from pipesong.services.tools import ToolExecutor, format_tools_prompt
 
 logger = logging.getLogger(__name__)
 
+# Flux end-of-turn defaults applied when an agent leaves eot_* unset. The eager>eot
+# guard below compares against these SAME constants that ship to Settings — keep single.
+_FLUX_DEFAULT_EOT_THRESHOLD = 0.7
+_FLUX_DEFAULT_EOT_TIMEOUT_MS = 5000
+
 
 def create_pipeline(
     transport: FastAPIWebsocketTransport,
@@ -58,10 +63,25 @@ def create_pipeline(
     knowledge_base_id=None,
     kb_chunk_count: int = 3,
     kb_similarity_threshold: float = 0.5,
-    vad_stop_secs: float | None = None,
-    vad_confidence: float | None = None,
+    eot_threshold: float | None = None,
+    eager_eot_threshold: float | None = None,
+    eot_timeout_ms: int | None = None,
 ) -> tuple["PipelineTask", "ToolCallProcessor | None"]:
     """Build a Pipecat pipeline for a single call."""
+
+    # Agent-level Flux turn tuning (S1): None = Flux/pipeline defaults. Guard the pair
+    # here as well as in the API — a partial agent update can leave eager > eot in the
+    # DB, and Flux rejects that pair; drop eager rather than break the live call.
+    if eager_eot_threshold is not None:
+        effective_eot = eot_threshold if eot_threshold is not None else _FLUX_DEFAULT_EOT_THRESHOLD
+        if eager_eot_threshold > effective_eot:
+            logger.warning(
+                "Agent eager_eot_threshold %.2f > eot_threshold %.2f — dropping eager "
+                "(Flux rejects the pair)",
+                eager_eot_threshold,
+                effective_eot,
+            )
+            eager_eot_threshold = None
 
     # STT — Deepgram Flux (integrated transcription + end-of-turn detection).
     # NOTE: Flux REPLACES Nova-3 entirely (one model does transcription AND turn-taking).
@@ -75,11 +95,13 @@ def create_pipeline(
         settings=DeepgramFluxSTTService.Settings(
             model="flux-general-multi",   # Spanish via the multilingual model
             language_hints=[language],    # bias toward the agent language (es)
-            eot_threshold=0.7,            # 0.5-0.9; lower = faster turns, more false ends
-            # eager_eot_threshold left OFF (Flux default): it speeds responses but triggers
-            # extra speculative LLM calls — a cost regression on a <$0.03/min product.
-            # Enable + A/B only after the cost baseline (see upgrade doc §6 / W3).
-            eot_timeout_ms=5000,
+            # 0.5-0.9; lower = faster turns, more false ends. Per-agent override (S1).
+            eot_threshold=eot_threshold if eot_threshold is not None else _FLUX_DEFAULT_EOT_THRESHOLD,
+            # eager stays OFF unless the agent explicitly sets it: it speeds responses but
+            # triggers extra speculative LLM calls — a cost regression on a <$0.03/min
+            # product. A/B before enabling fleet-wide (upgrade doc §6 / W3). None = OFF.
+            eager_eot_threshold=eager_eot_threshold,
+            eot_timeout_ms=eot_timeout_ms if eot_timeout_ms is not None else _FLUX_DEFAULT_EOT_TIMEOUT_MS,
         ),
     )
 
@@ -127,16 +149,8 @@ def create_pipeline(
     )
 
     # Turn-taking is owned by Deepgram Flux (server-side EOT), so the user aggregator
-    # uses ExternalUserTurnStrategies instead of a local Silero VAD analyzer.
-    # NOTE: the agent-level vad_stop_secs / vad_confidence overrides are now INERT for Flux
-    # agents — tune turn behaviour via the STT eot_threshold / eager_eot_threshold instead
-    # (future: map those agent columns onto the Flux EOT params).
-    if vad_stop_secs is not None or vad_confidence is not None:
-        logger.warning(
-            "Agent vad_stop_secs/vad_confidence are IGNORED under Deepgram Flux "
-            "(Flux owns turn-taking). Tune eot_threshold/eager_eot_threshold instead. "
-            "TODO: map these agent columns onto Flux EOT params before merge (audit S1)."
-        )
+    # uses ExternalUserTurnStrategies instead of a local Silero VAD analyzer. Per-agent
+    # turn tuning happens via the eot_* params on the STT settings above (S1 closed).
     # User muting — replaces the STTMuteFilter processor removed in Pipecat 1.0.
     # MuteUntilFirstBotComplete: muted from t=0 until the first bot utterance ends,
     # so the legally-required recording disclosure can't be interrupted — including

@@ -128,7 +128,7 @@ Watch the logs for:
 - ✅ no Deepgram/STT socket error (the C1 failure would surface here too)
 - ✅ turn-taking feels natural (Flux EOT driving turns; Silero/Smart-Turn are gone)
 - ✅ transcripts land in PostgreSQL; recording in MinIO
-- ✅ the expected warning `Agent vad_stop_secs/vad_confidence are IGNORED under Deepgram Flux` (confirms the new turn path is active)
+- ✅ per-agent EOT tuning is live (S1, shipped 2026-08-04): `PATCH /agents/{id}` with `{"eot_threshold": 0.8}`, place a call, and confirm the Deepgram v2 connect URL in DEBUG logs carries `eot_threshold=0.8` and **omits** `eager_eot_threshold` (eager stays OFF unless set). The old `vad_* are IGNORED` warning no longer exists — its columns were replaced by `eot_*`.
 - check per-turn latency via `GET /calls/{id}/latency` — Flux EOT should not blow the budget
 
 ---

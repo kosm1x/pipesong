@@ -16,6 +16,11 @@
 >
 > - a new `DisclosureGate` processor). **Every remaining merge-gate item is GPU/live-call
 >   work** — resume at REPROBE Phase 1 (S1 eot mapping, VPS-only) or Phase 2 (GPU).
+>
+> **Phase 1 COMPLETED 2026-08-04**: agent turn tuning is now Flux-native (`eot_threshold`/
+> `eager_eot_threshold`/`eot_timeout_ms`; `vad_*` columns gone — persistent DBs need
+> `scripts/migrations/2026-08-04-agent-eot-columns.sql` applied BEFORE deploying).
+> **Only Phase 2 (GPU validation + WER A/B) remains before merge.**
 
 ## State
 
