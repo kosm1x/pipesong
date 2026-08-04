@@ -7,12 +7,13 @@ import logging
 from typing import Any
 
 from pipecat.frames.frames import (
+    BotStoppedSpeakingFrame,
     EndFrame,
+    InterruptionFrame,
     LLMFullResponseEndFrame,
-    LLMMessagesFrame,
+    LLMRunFrame,
     LLMTextFrame,
     MetricsFrame,
-    StartInterruptionFrame,
     TTSSpeakFrame,
     TranscriptionFrame,
 )
@@ -200,7 +201,7 @@ class SentenceStreamBuffer(FrameProcessor):
     Sentence boundaries: . ? ! (closing marks only — inverted ¿¡ appear at sentence starts).
     Excludes: abbreviations (Sr., Dra., etc.), ellipsis (...), decimal numbers.
 
-    On interruption (StartInterruptionFrame): discards buffered partial sentence
+    On interruption (InterruptionFrame): discards buffered partial sentence
     and clears any pending state. Pipecat's built-in interruption cancels the
     current TTS frame; this processor ensures the sentence queue is also cleared.
 
@@ -230,7 +231,7 @@ class SentenceStreamBuffer(FrameProcessor):
             await self.push_frame(frame, direction)
             return
 
-        if isinstance(frame, StartInterruptionFrame):
+        if isinstance(frame, InterruptionFrame):
             # Discard partial sentence on interruption
             if self._buffer:
                 logger.debug("SentenceStreamBuffer: discarding %d chars on interruption", len(self._buffer))
@@ -298,6 +299,35 @@ class SentenceStreamBuffer(FrameProcessor):
             i += 1
 
         return -1
+
+
+class DisclosureGate(FrameProcessor):
+    """Drops user TranscriptionFrames until the bot's first utterance completes.
+
+    Mirrors MuteUntilFirstBotCompleteUserMuteStrategy on the user aggregator: the
+    aggregator mute keeps muted speech out of the LLM, but TranscriptCapture and
+    RAGProcessor sit upstream of the aggregator and would still write pre-disclosure
+    noise ("¿Bueno?", background speech) to the transcript DB and inject [KB]
+    context from it into the first real turn. Place immediately after STT.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._first_bot_utterance_done = False
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, BotStoppedSpeakingFrame):
+            self._first_bot_utterance_done = True
+        elif isinstance(frame, TranscriptionFrame) and not self._first_bot_utterance_done:
+            logger.debug(
+                "DisclosureGate: dropping pre-disclosure transcription: %r",
+                frame.text[:40] if frame.text else "",
+            )
+            return
+
+        await self.push_frame(frame, direction)
 
 
 class TranscriptCapture(FrameProcessor):
@@ -699,11 +729,10 @@ class ToolCallProcessor(FrameProcessor):
         if len(msgs) > self.MAX_CONTEXT_MESSAGES:
             self._context.set_messages(msgs[:1] + msgs[-(self.MAX_CONTEXT_MESSAGES - 1):])
 
-        # Trigger new LLM turn with updated context
-        await self.push_frame(
-            LLMMessagesFrame(self._context.get_messages()),
-            FrameDirection.UPSTREAM,
-        )
+        # Trigger new LLM turn. 1.x: LLMMessagesFrame is gone; LLMRunFrame makes the
+        # user aggregator push its context downstream for exactly one new completion
+        # (the shared context was already mutated above — no messages payload needed).
+        await self.push_frame(LLMRunFrame(), FrameDirection.UPSTREAM)
 
     async def _handle_end_call(self, arguments: dict):
         reason = arguments.get("reason", "Gracias por su llamada.")

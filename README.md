@@ -52,7 +52,7 @@ Phone Call → Telnyx (PSTN + WebSocket audio)
 FastAPI + Pipecat Pipeline
   │
   ├─ Deepgram STT (cloud, streaming, 220ms)
-  ├─ STTMuteFilter (suppress interruption during disclosure/tools)
+  ├─ DisclosureGate + user-mute strategies (protect disclosure; drop pre-disclosure noise)
   ├─ RAGProcessor (pgvector KB retrieval, 11-32ms)
   ├─ Qwen 2.5 7B AWQ via vLLM (local GPU, 110ms TTFB)
   ├─ ToolCallProcessor (streaming mode + early bail-out)

@@ -1,35 +1,36 @@
 # Core pipeline
-# UPGRADE (branch flux-pipecat1x, 2026-06-17): 0.0.106 -> 1.x for DeepgramFluxSTTService.
-# UNVALIDATED — pin verified on PyPI (latest 1.4.0); confirm extra names + that Flux replaces
-# the dropped `silero` extra before merge. See docs/upgrade-flux-pipecat1x-2026-06-17.md.
-pipecat-ai[websocket,deepgram,kokoro,openai]==1.4.0
+# 2026-08-01 reprobe (docs/REPROBE-2026-08-01.md): 1.4.0 -> 1.7.0 — zero renames in our API
+# surface; 1.5.0 carries the Flux teardown-leak fix (PR #4902), 1.7.0 the Configure-burst
+# fix (PR #4791). Extras verified valid in 1.7.0 metadata. Still UNVALIDATED on live calls.
+pipecat-ai[websocket,deepgram,kokoro,openai]==1.7.0
 
 # Web framework
-fastapi==0.115.12
-uvicorn[standard]==0.34.3
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
 
 # Database
-sqlalchemy[asyncio]==2.0.41
-asyncpg==0.30.0
-alembic==1.15.2
+sqlalchemy[asyncio]==2.0.51
+asyncpg==0.31.0
+alembic==1.18.5
 
 # Object storage
-minio==7.2.15
+minio==7.2.20
 
 # HTTP client (tool execution, webhooks)
 httpx==0.28.1
 
 # RAG / Knowledge Base
-sentence-transformers>=3.0.0
-pgvector>=0.3.0
-tiktoken>=0.7.0
-pymupdf4llm>=0.0.17
-python-docx>=1.1.0
-markdownify>=0.13.0
+# Pinned 2026-08-01 (were floors — fresh installs already floated here untested)
+sentence-transformers==5.6.1
+pgvector==0.5.0
+tiktoken==0.13.0
+pymupdf4llm==1.28.0
+python-docx==1.2.0
+markdownify==1.2.3
 
 # File upload
-python-multipart>=0.0.20
+python-multipart==0.0.32
 
 # Config
-python-dotenv==1.1.0
-pydantic-settings==2.9.1
+python-dotenv==1.2.2
+pydantic-settings==2.14.2

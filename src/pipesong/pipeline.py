@@ -16,18 +16,22 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
+from pipecat.turns.user_mute import (
+    FunctionCallUserMuteStrategy,
+    MuteUntilFirstBotCompleteUserMuteStrategy,
+)
 from pipecat.turns.user_turn_strategies import ExternalUserTurnStrategies
-from pipecat.services.deepgram.flux import DeepgramFluxSTTService
+from pipecat.services.deepgram.flux.stt import DeepgramFluxSTTService
 from pipecat.services.kokoro.tts import KokoroTTSService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.tts_service import TextAggregationMode
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport
 
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
-from pipecat.processors.filters.stt_mute_filter import STTMuteFilter, STTMuteConfig, STTMuteStrategy
 
 from pipesong.config import settings
 from pipesong.processors import (
+    DisclosureGate,
     MetricsCollector,
     RAGProcessor,
     SentenceStreamBuffer,
@@ -133,11 +137,22 @@ def create_pipeline(
             "(Flux owns turn-taking). Tune eot_threshold/eager_eot_threshold instead. "
             "TODO: map these agent columns onto Flux EOT params before merge (audit S1)."
         )
+    # User muting — replaces the STTMuteFilter processor removed in Pipecat 1.0.
+    # MuteUntilFirstBotComplete: muted from t=0 until the first bot utterance ends,
+    # so the legally-required recording disclosure can't be interrupted — including
+    # the pre-TTS-audio gap the old FIRST_SPEECH strategy left open (QA 2026-08-04 W2).
+    # FunctionCallUserMuteStrategy keys off Pipecat's native function-call frames; it
+    # is inert under the prompt-based ToolCallProcessor (as FUNCTION_CALL already was)
+    # and becomes live with the native-tool-calling migration (REPROBE Phase 3).
     context = LLMContext()
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
         user_params=LLMUserAggregatorParams(
             user_turn_strategies=ExternalUserTurnStrategies(),
+            user_mute_strategies=[
+                MuteUntilFirstBotCompleteUserMuteStrategy(),
+                FunctionCallUserMuteStrategy(),
+            ],
         ),
     )
 
@@ -148,18 +163,17 @@ def create_pipeline(
     # emits TTSSpeakFrames for LLM↔TTS overlap (Phase 4a)
     sentence_buffer = SentenceStreamBuffer()
 
-    # Pipeline: audio in → STT → [user transcript] → [RAG] → context → LLM →
-    # [tool processor] → [assistant transcript] → filter → sentence buffer → TTS → [metrics] → audio out
-    # Suppress interruptions during disclosure (FIRST_SPEECH) and tool execution (FUNCTION_CALL)
-    stt_mute = STTMuteFilter(
-        config=STTMuteConfig(strategies={STTMuteStrategy.FIRST_SPEECH, STTMuteStrategy.FUNCTION_CALL}),
-    )
-
+    # Pipeline: audio in → STT → [disclosure gate] → [user transcript] → [RAG] → context →
+    # LLM → [tool processor] → [assistant transcript] → filter → sentence buffer → TTS →
+    # [metrics] → audio out
+    # (Disclosure/tool-call muting lives on the user aggregator via user_mute_strategies;
+    # DisclosureGate keeps pre-disclosure noise out of TranscriptCapture/RAGProcessor,
+    # which sit upstream of that mute point — QA 2026-08-04 W1.)
     tool_processor = None
     processors = [
         transport.input(),
         stt,
-        stt_mute,  # After STT: intercepts TranscriptionFrame/InterruptionFrame
+        DisclosureGate(),
     ]
     if call_id and session_factory:
         # User capture between STT and aggregator (catches TranscriptionFrame)

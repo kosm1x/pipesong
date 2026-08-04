@@ -35,7 +35,7 @@ python3.11 -m venv .venv
 # shellcheck disable=SC1091
 source .venv/bin/activate
 pip install -U pip
-pip install -r requirements.txt          # pipecat-ai==1.4.0 (+ kokoro, deepgram, websocket, openai)
+pip install -r requirements.txt          # pipecat-ai==1.7.0 (+ kokoro, deepgram, websocket, openai)
 pip install "vllm==0.6.6"                 # match prod LLM server; this branch does NOT change the LLM
 
 echo "== 3. infra: Postgres + MinIO =="

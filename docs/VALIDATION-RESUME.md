@@ -8,6 +8,14 @@
 > (`STTMuteFilter` removed in pipecat 1.0; flux import needs the `.stt` submodule) that must be
 > fixed in its Phase 0 — which runs on this VPS, **no GPU needed**. Pin target is now pipecat
 > **1.7.0**; vLLM/native-tools modernization is its Phase 3, post-merge.
+>
+> **Phase 0 COMPLETED 2026-08-04**: the branch now installs and imports clean on 1.7.0
+> (4 latent breaks fixed — the two above plus `LLMMessagesFrame`→`LLMRunFrame` and
+> `StartInterruptionFrame`→`InterruptionFrame`; nltk ≥3.10 boot guard added in
+> `pipesong/__init__.py`; QA warnings closed with `MuteUntilFirstBotCompleteUserMuteStrategy`
+>
+> - a new `DisclosureGate` processor). **Every remaining merge-gate item is GPU/live-call
+>   work** — resume at REPROBE Phase 1 (S1 eot mapping, VPS-only) or Phase 2 (GPU).
 
 ## State
 
