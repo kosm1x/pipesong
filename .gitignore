@@ -6,5 +6,6 @@ dist/
 build/
 .venv/
 venv/
+.claude/
 *.wav
 *.mp3
