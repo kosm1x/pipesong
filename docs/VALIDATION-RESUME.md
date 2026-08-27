@@ -21,6 +21,12 @@
 > `eager_eot_threshold`/`eot_timeout_ms`; `vad_*` columns gone — persistent DBs need
 > `scripts/migrations/2026-08-04-agent-eot-columns.sql` applied BEFORE deploying).
 > **Only Phase 2 (GPU validation + WER A/B) remains before merge.**
+>
+> **UPDATE 2026-08-27 — sequence now lives in `docs/ROADMAP-2026-08-27.md`.** The blocker is
+> NOT just a GPU: four operator inputs gate Phase 2 (`DEEPGRAM_API_KEY` — no `.env` on the VPS;
+> GPU box; Telnyx number liveness; Flux pricing sign-off at $0.0078/min). Meanwhile Phases A.0/A.1
+> (pre-recorded disclosure + mixer) and B.1 (MCP over the existing REST) build on the VPS with no
+> GPU; their gates (A.2/B.2) run in the same GPU window as Phase 2.
 
 ## State
 
