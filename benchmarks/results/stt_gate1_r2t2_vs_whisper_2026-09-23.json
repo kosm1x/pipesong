@@ -1,0 +1,1448 @@
+{
+ "probe": "Confucius4-R2T2 gate 1 — offline Spanish WER vs faster-whisper large-v3-turbo",
+ "date": "2026-09-23",
+ "clips": "benchmarks/audio/samples/phone_*.wav (100: 5 synthetic TTS voices x 20 sentences, 8 kHz mu-law, resampled to 16 kHz)",
+ "references": "benchmarks/prompts/tts_sentences_20.txt",
+ "normalization": "lowercase, punctuation stripped; wer_no_accents also strips diacritics",
+ "hardware": "VPS CPU, 2 threads, nice 19; R2T2 transformers backend bf16; whisper int8",
+ "engines": {
+  "r2t2": {
+   "summary": {
+    "engine": "r2t2",
+    "clips": 100,
+    "load_s": 1.0,
+    "wer": 0.0466,
+    "wer_no_accents": 0.0439,
+    "rtf_mean": 1.522,
+    "per_voice": {
+     "phone_fish_es": 0.0541,
+     "phone_kokoro_ef_dora": 0.0507,
+     "phone_kokoro_em_alex": 0.0541,
+     "phone_kokoro_em_santa": 0.0135,
+     "phone_xtts_es": 0.0608
+    }
+   },
+   "rows": [
+    {
+     "file": "phone_fish_es_01.wav",
+     "ref": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "hyp": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "ms": 9084,
+     "audio_s": 4.09
+    },
+    {
+     "file": "phone_fish_es_02.wav",
+     "ref": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "hyp": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo",
+     "ms": 8601,
+     "audio_s": 5.48
+    },
+    {
+     "file": "phone_fish_es_03.wav",
+     "ref": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "hyp": "Permitame un momento mientras verifico la información en nuestro sistema",
+     "ms": 5707,
+     "audio_s": 4.09
+    },
+    {
+     "file": "phone_fish_es_04.wav",
+     "ref": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "hyp": "Me podría proporcionar su número de cuenta o el correo electrónico registrado",
+     "ms": 5433,
+     "audio_s": 4.64
+    },
+    {
+     "file": "phone_fish_es_05.wav",
+     "ref": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "hyp": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "ms": 8344,
+     "audio_s": 5.34
+    },
+    {
+     "file": "phone_fish_es_06.wav",
+     "ref": "Vamos a resolver esto juntos, no se preocupe.",
+     "hyp": "Vamos a resolver esto juntos, no se preocupe.",
+     "ms": 5383,
+     "audio_s": 2.88
+    },
+    {
+     "file": "phone_fish_es_07.wav",
+     "ref": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+     "hyp": "Su cita quedó agendada para el martes 15 de abril a las tres de la tarde",
+     "ms": 7393,
+     "audio_s": 4.18
+    },
+    {
+     "file": "phone_fish_es_08.wav",
+     "ref": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "hyp": "El monto total de su factura es de 2.345 pesos con 60 centavos.",
+     "ms": 7791,
+     "audio_s": 5.48
+    },
+    {
+     "file": "phone_fish_es_09.wav",
+     "ref": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "hyp": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "ms": 9036,
+     "audio_s": 5.94
+    },
+    {
+     "file": "phone_fish_es_10.wav",
+     "ref": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "hyp": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa",
+     "ms": 8078,
+     "audio_s": 5.94
+    },
+    {
+     "file": "phone_fish_es_11.wav",
+     "ref": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "hyp": "Hay algo más en lo que le pueda ayudar el día de hoy",
+     "ms": 5622,
+     "audio_s": 2.83
+    },
+    {
+     "file": "phone_fish_es_12.wav",
+     "ref": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinco-seis-siete-ocho.",
+     "hyp": "Lo confirmo que su ticket de soporte ha sido creado con el número st45678",
+     "ms": 8356,
+     "audio_s": 6.36
+    },
+    {
+     "file": "phone_fish_es_13.wav",
+     "ref": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su fecha de nacimiento?",
+     "hyp": "Para realizar el cambio necesito verificar su identidad. ¿Me puede confirmar su fecha de nacimiento?",
+     "ms": 8779,
+     "audio_s": 6.36
+    },
+    {
+     "file": "phone_fish_es_14.wav",
+     "ref": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "hyp": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "ms": 9038,
+     "audio_s": 5.48
+    },
+    {
+     "file": "phone_fish_es_15.wav",
+     "ref": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "hyp": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "ms": 7209,
+     "audio_s": 5.53
+    },
+    {
+     "file": "phone_fish_es_16.wav",
+     "ref": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "hyp": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "ms": 8137,
+     "audio_s": 5.57
+    },
+    {
+     "file": "phone_fish_es_17.wav",
+     "ref": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "hyp": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "ms": 7866,
+     "audio_s": 6.41
+    },
+    {
+     "file": "phone_fish_es_18.wav",
+     "ref": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "hyp": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "ms": 10727,
+     "audio_s": 6.64
+    },
+    {
+     "file": "phone_fish_es_19.wav",
+     "ref": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "hyp": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "ms": 8420,
+     "audio_s": 5.43
+    },
+    {
+     "file": "phone_fish_es_20.wav",
+     "ref": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "hyp": "Prefiere que le enviemos la información por correo electrónico o por mensaje de texto",
+     "ms": 6037,
+     "audio_s": 4.18
+    },
+    {
+     "file": "phone_kokoro_ef_dora_01.wav",
+     "ref": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "hyp": "Buenos días, le habla María del área de soporte técnico, en qué le puedo ayudar?",
+     "ms": 7532,
+     "audio_s": 4.59
+    },
+    {
+     "file": "phone_kokoro_ef_dora_02.wav",
+     "ref": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "hyp": "Gracias por comunicarse con nosotros. Mi nombre es Carlos y con mucho gusto le atiendo.",
+     "ms": 6957,
+     "audio_s": 5.07
+    },
+    {
+     "file": "phone_kokoro_ef_dora_03.wav",
+     "ref": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "hyp": "Permitame un momento mientras verifico la información en nuestro sistema.",
+     "ms": 6152,
+     "audio_s": 4.41
+    },
+    {
+     "file": "phone_kokoro_ef_dora_04.wav",
+     "ref": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "hyp": "Me podría proporcionar su número de cuenta o el correo electrónico registrado.",
+     "ms": 5635,
+     "audio_s": 4.52
+    },
+    {
+     "file": "phone_kokoro_ef_dora_05.wav",
+     "ref": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "hyp": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "ms": 8986,
+     "audio_s": 5.42
+    },
+    {
+     "file": "phone_kokoro_ef_dora_06.wav",
+     "ref": "Vamos a resolver esto juntos, no se preocupe.",
+     "hyp": "Vamos a resolver esto juntos, no se preocupe.",
+     "ms": 6990,
+     "audio_s": 2.92
+    },
+    {
+     "file": "phone_kokoro_ef_dora_07.wav",
+     "ref": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+     "hyp": "Su cita quedó agendada para el martes 15 de abril a las tres de la tarde.",
+     "ms": 8299,
+     "audio_s": 4.27
+    },
+    {
+     "file": "phone_kokoro_ef_dora_08.wav",
+     "ref": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "hyp": "El monto total de su factura es de 2.345 pesos con 60 centavos",
+     "ms": 9134,
+     "audio_s": 5.94
+    },
+    {
+     "file": "phone_kokoro_ef_dora_09.wav",
+     "ref": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "hyp": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "ms": 9501,
+     "audio_s": 6.07
+    },
+    {
+     "file": "phone_kokoro_ef_dora_10.wav",
+     "ref": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "hyp": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "ms": 8089,
+     "audio_s": 5.92
+    },
+    {
+     "file": "phone_kokoro_ef_dora_11.wav",
+     "ref": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "hyp": "Hay algo más en lo que le pueda ayudar el día de hoy.",
+     "ms": 5621,
+     "audio_s": 3.07
+    },
+    {
+     "file": "phone_kokoro_ef_dora_12.wav",
+     "ref": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinco-seis-siete-ocho.",
+     "hyp": "Le confirmo que su ticket de soporte ha sido creado con el número st45678",
+     "ms": 8458,
+     "audio_s": 5.79
+    },
+    {
+     "file": "phone_kokoro_ef_dora_13.wav",
+     "ref": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su fecha de nacimiento?",
+     "hyp": "Para realizar el cambio necesito verificar su identidad. Me puede confirmar su fecha de nacimiento?",
+     "ms": 8952,
+     "audio_s": 5.89
+    },
+    {
+     "file": "phone_kokoro_ef_dora_14.wav",
+     "ref": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "hyp": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "ms": 8802,
+     "audio_s": 6.22
+    },
+    {
+     "file": "phone_kokoro_ef_dora_15.wav",
+     "ref": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "hyp": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "ms": 7593,
+     "audio_s": 5.84
+    },
+    {
+     "file": "phone_kokoro_ef_dora_16.wav",
+     "ref": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "hyp": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "ms": 7813,
+     "audio_s": 6.17
+    },
+    {
+     "file": "phone_kokoro_ef_dora_17.wav",
+     "ref": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "hyp": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "ms": 8572,
+     "audio_s": 5.79
+    },
+    {
+     "file": "phone_kokoro_ef_dora_18.wav",
+     "ref": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "hyp": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "ms": 9810,
+     "audio_s": 6.72
+    },
+    {
+     "file": "phone_kokoro_ef_dora_19.wav",
+     "ref": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "hyp": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "ms": 7592,
+     "audio_s": 5.54
+    },
+    {
+     "file": "phone_kokoro_ef_dora_20.wav",
+     "ref": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "hyp": "Prefiere que le enviemos la información por correo electrónico o por mensaje de texto.",
+     "ms": 6757,
+     "audio_s": 4.83
+    },
+    {
+     "file": "phone_kokoro_em_alex_01.wav",
+     "ref": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "hyp": "Buenos días, le habla María del área de soporte técnico, en qué le puedo ayudar?",
+     "ms": 10109,
+     "audio_s": 4.62
+    },
+    {
+     "file": "phone_kokoro_em_alex_02.wav",
+     "ref": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "hyp": "Gracias por comunicarse con nosotros. Mi nombre es Carlos y con mucho gusto le atiendo.",
+     "ms": 8068,
+     "audio_s": 5.22
+    },
+    {
+     "file": "phone_kokoro_em_alex_03.wav",
+     "ref": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "hyp": "Permitame un momento mientras verifico la información en nuestro sistema.",
+     "ms": 5220,
+     "audio_s": 4.46
+    },
+    {
+     "file": "phone_kokoro_em_alex_04.wav",
+     "ref": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "hyp": "Me podría proporcionar su número de cuenta o el correo electrónico registrado.",
+     "ms": 5113,
+     "audio_s": 4.64
+    },
+    {
+     "file": "phone_kokoro_em_alex_05.wav",
+     "ref": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "hyp": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "ms": 8631,
+     "audio_s": 5.39
+    },
+    {
+     "file": "phone_kokoro_em_alex_06.wav",
+     "ref": "Vamos a resolver esto juntos, no se preocupe.",
+     "hyp": "Vamos a resolver esto juntos, no se preocupe.",
+     "ms": 4964,
+     "audio_s": 2.92
+    },
+    {
+     "file": "phone_kokoro_em_alex_07.wav",
+     "ref": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+     "hyp": "Tu cita quedó agendada para el martes 15 de abril a las tres de la tarde.",
+     "ms": 8494,
+     "audio_s": 4.34
+    },
+    {
+     "file": "phone_kokoro_em_alex_08.wav",
+     "ref": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "hyp": "El monto total de su factura es de 2.345 pesos con 60 centavos.",
+     "ms": 9299,
+     "audio_s": 6.09
+    },
+    {
+     "file": "phone_kokoro_em_alex_09.wav",
+     "ref": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "hyp": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "ms": 9795,
+     "audio_s": 6.24
+    },
+    {
+     "file": "phone_kokoro_em_alex_10.wav",
+     "ref": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "hyp": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "ms": 9316,
+     "audio_s": 5.84
+    },
+    {
+     "file": "phone_kokoro_em_alex_11.wav",
+     "ref": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "hyp": "Hay algo más en lo que le pueda ayudar el día de hoy.",
+     "ms": 5798,
+     "audio_s": 3.24
+    },
+    {
+     "file": "phone_kokoro_em_alex_12.wav",
+     "ref": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinco-seis-siete-ocho.",
+     "hyp": "Le confirmo que su ticket de soporte ha sido creado con el número st45678",
+     "ms": 8255,
+     "audio_s": 5.99
+    },
+    {
+     "file": "phone_kokoro_em_alex_13.wav",
+     "ref": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su fecha de nacimiento?",
+     "hyp": "Para realizar el cambio necesito verificar su identidad. Me puede confirmar su fecha de nacimiento?",
+     "ms": 8944,
+     "audio_s": 6.01
+    },
+    {
+     "file": "phone_kokoro_em_alex_14.wav",
+     "ref": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "hyp": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "ms": 9207,
+     "audio_s": 6.07
+    },
+    {
+     "file": "phone_kokoro_em_alex_15.wav",
+     "ref": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "hyp": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "ms": 7841,
+     "audio_s": 6.09
+    },
+    {
+     "file": "phone_kokoro_em_alex_16.wav",
+     "ref": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "hyp": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "ms": 8466,
+     "audio_s": 6.29
+    },
+    {
+     "file": "phone_kokoro_em_alex_17.wav",
+     "ref": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "hyp": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "ms": 8120,
+     "audio_s": 5.87
+    },
+    {
+     "file": "phone_kokoro_em_alex_18.wav",
+     "ref": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "hyp": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "ms": 10284,
+     "audio_s": 6.79
+    },
+    {
+     "file": "phone_kokoro_em_alex_19.wav",
+     "ref": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "hyp": "Muchas gracias por su paciencia y por comunicarse con nosotros. Que tenga un excelente día.",
+     "ms": 7354,
+     "audio_s": 5.64
+    },
+    {
+     "file": "phone_kokoro_em_alex_20.wav",
+     "ref": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "hyp": "Prefiere que le enviemos la información por correo electrónico o por mensaje de texto.",
+     "ms": 6060,
+     "audio_s": 4.83
+    },
+    {
+     "file": "phone_kokoro_em_santa_01.wav",
+     "ref": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "hyp": "Buenos días, le habla María del área de soporte técnico, en qué le puedo ayudar.",
+     "ms": 7925,
+     "audio_s": 4.74
+    },
+    {
+     "file": "phone_kokoro_em_santa_02.wav",
+     "ref": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "hyp": "Gracias por comunicarse con nosotros. Mi nombre es Carlos y con mucho gusto le atiendo.",
+     "ms": 7141,
+     "audio_s": 5.14
+    },
+    {
+     "file": "phone_kokoro_em_santa_03.wav",
+     "ref": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "hyp": "Permitame un momento mientras verifico la información en nuestro sistema.",
+     "ms": 5432,
+     "audio_s": 4.49
+    },
+    {
+     "file": "phone_kokoro_em_santa_04.wav",
+     "ref": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "hyp": "Me podría proporcionar su número de cuenta o el correo electrónico registrado.",
+     "ms": 9283,
+     "audio_s": 4.74
+    },
+    {
+     "file": "phone_kokoro_em_santa_05.wav",
+     "ref": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "hyp": "entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada",
+     "ms": 9023,
+     "audio_s": 5.39
+    },
+    {
+     "file": "phone_kokoro_em_santa_06.wav",
+     "ref": "Vamos a resolver esto juntos, no se preocupe.",
+     "hyp": "Vamos a resolver esto juntos, no se preocupe.",
+     "ms": 5642,
+     "audio_s": 2.89
+    },
+    {
+     "file": "phone_kokoro_em_santa_07.wav",
+     "ref": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+     "hyp": "Tu cita quedó agendada para el martes 15 de abril a las tres de la tarde",
+     "ms": 8413,
+     "audio_s": 4.37
+    },
+    {
+     "file": "phone_kokoro_em_santa_08.wav",
+     "ref": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "hyp": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "ms": 10436,
+     "audio_s": 6.24
+    },
+    {
+     "file": "phone_kokoro_em_santa_09.wav",
+     "ref": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "hyp": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "ms": 9155,
+     "audio_s": 6.24
+    },
+    {
+     "file": "phone_kokoro_em_santa_10.wav",
+     "ref": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "hyp": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "ms": 8734,
+     "audio_s": 5.99
+    },
+    {
+     "file": "phone_kokoro_em_santa_11.wav",
+     "ref": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "hyp": "Hay algo más en lo que le pueda ayudar el día de hoy.",
+     "ms": 6595,
+     "audio_s": 3.17
+    },
+    {
+     "file": "phone_kokoro_em_santa_12.wav",
+     "ref": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinco-seis-siete-ocho.",
+     "hyp": "Le confirmo que su ticket de soporte ha sido creado con el número st cuatro cinco seis siete ocho",
+     "ms": 8741,
+     "audio_s": 6.12
+    },
+    {
+     "file": "phone_kokoro_em_santa_13.wav",
+     "ref": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su fecha de nacimiento?",
+     "hyp": "Para realizar el cambio necesito verificar su identidad. Me puede confirmar su fecha de nacimiento?",
+     "ms": 8505,
+     "audio_s": 6.01
+    },
+    {
+     "file": "phone_kokoro_em_santa_14.wav",
+     "ref": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "hyp": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "ms": 9810,
+     "audio_s": 6.12
+    },
+    {
+     "file": "phone_kokoro_em_santa_15.wav",
+     "ref": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "hyp": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "ms": 7547,
+     "audio_s": 6.14
+    },
+    {
+     "file": "phone_kokoro_em_santa_16.wav",
+     "ref": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "hyp": "Te recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "ms": 8217,
+     "audio_s": 6.49
+    },
+    {
+     "file": "phone_kokoro_em_santa_17.wav",
+     "ref": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "hyp": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "ms": 8639,
+     "audio_s": 5.92
+    },
+    {
+     "file": "phone_kokoro_em_santa_18.wav",
+     "ref": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "hyp": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "ms": 10840,
+     "audio_s": 6.84
+    },
+    {
+     "file": "phone_kokoro_em_santa_19.wav",
+     "ref": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "hyp": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "ms": 7552,
+     "audio_s": 5.67
+    },
+    {
+     "file": "phone_kokoro_em_santa_20.wav",
+     "ref": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "hyp": "Prefiere que le enviemos la información por correo electrónico o por mensaje de texto.",
+     "ms": 5905,
+     "audio_s": 5.01
+    },
+    {
+     "file": "phone_xtts_es_01.wav",
+     "ref": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "hyp": "Buenos días, le habla María del área de soporte técnico. ¿En qué le puedo ayudar?",
+     "ms": 8547,
+     "audio_s": 5.52
+    },
+    {
+     "file": "phone_xtts_es_02.wav",
+     "ref": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "hyp": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "ms": 6335,
+     "audio_s": 4.41
+    },
+    {
+     "file": "phone_xtts_es_03.wav",
+     "ref": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "hyp": "Permítame un momento mientras verifico la información en nuestro sistema. Bye",
+     "ms": 6444,
+     "audio_s": 5.61
+    },
+    {
+     "file": "phone_xtts_es_04.wav",
+     "ref": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "hyp": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "ms": 6398,
+     "audio_s": 4.78
+    },
+    {
+     "file": "phone_xtts_es_05.wav",
+     "ref": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "hyp": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "ms": 9005,
+     "audio_s": 5.2
+    },
+    {
+     "file": "phone_xtts_es_06.wav",
+     "ref": "Vamos a resolver esto juntos, no se preocupe.",
+     "hyp": "Vamos a resolver esto juntos, no se preocupe.",
+     "ms": 6428,
+     "audio_s": 3.2
+    },
+    {
+     "file": "phone_xtts_es_07.wav",
+     "ref": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+     "hyp": "Su cita quedó agendada para el martes 15 de abril a las 3 de la tarde.",
+     "ms": 9336,
+     "audio_s": 5.43
+    },
+    {
+     "file": "phone_xtts_es_08.wav",
+     "ref": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "hyp": "El monto total de su factura es de 2.345 pesos con 60 centavos.",
+     "ms": 8395,
+     "audio_s": 6.91
+    },
+    {
+     "file": "phone_xtts_es_09.wav",
+     "ref": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "hyp": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "ms": 9430,
+     "audio_s": 5.38
+    },
+    {
+     "file": "phone_xtts_es_10.wav",
+     "ref": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "hyp": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "ms": 8484,
+     "audio_s": 6.73
+    },
+    {
+     "file": "phone_xtts_es_11.wav",
+     "ref": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "hyp": "Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "ms": 5813,
+     "audio_s": 3.15
+    },
+    {
+     "file": "phone_xtts_es_12.wav",
+     "ref": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinco-seis-siete-ocho.",
+     "hyp": "Le confirmo que su ticket de soporte ha sido creado con el número scn45678",
+     "ms": 8369,
+     "audio_s": 7.33
+    },
+    {
+     "file": "phone_xtts_es_13.wav",
+     "ref": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su fecha de nacimiento?",
+     "hyp": "Para realizar el cambio necesito verificar su identidad. ¿Me puede confirmar su fecha de nacimiento?",
+     "ms": 8683,
+     "audio_s": 5.71
+    },
+    {
+     "file": "phone_xtts_es_14.wav",
+     "ref": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "hyp": "El técnico estará visitando su domicilio el próximo jueves entre 9 de la mañana y 1 de la tarde.",
+     "ms": 9522,
+     "audio_s": 6.22
+    },
+    {
+     "file": "phone_xtts_es_15.wav",
+     "ref": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "hyp": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "ms": 8313,
+     "audio_s": 5.43
+    },
+    {
+     "file": "phone_xtts_es_16.wav",
+     "ref": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "hyp": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "ms": 7762,
+     "audio_s": 5.8
+    },
+    {
+     "file": "phone_xtts_es_17.wav",
+     "ref": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "hyp": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "ms": 8939,
+     "audio_s": 7.7
+    },
+    {
+     "file": "phone_xtts_es_18.wav",
+     "ref": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "hyp": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "ms": 10015,
+     "audio_s": 6.73
+    },
+    {
+     "file": "phone_xtts_es_19.wav",
+     "ref": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "hyp": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "ms": 7429,
+     "audio_s": 5.89
+    },
+    {
+     "file": "phone_xtts_es_20.wav",
+     "ref": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "hyp": "Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "ms": 8321,
+     "audio_s": 4.96
+    }
+   ]
+  },
+  "whisper": {
+   "summary": {
+    "engine": "whisper",
+    "clips": 100,
+    "load_s": 28.4,
+    "wer": 0.0676,
+    "wer_no_accents": 0.0662,
+    "rtf_mean": 2.1,
+    "per_voice": {
+     "phone_fish_es": 0.0709,
+     "phone_kokoro_ef_dora": 0.0676,
+     "phone_kokoro_em_alex": 0.0709,
+     "phone_kokoro_em_santa": 0.0642,
+     "phone_xtts_es": 0.0642
+    }
+   },
+   "rows": [
+    {
+     "file": "phone_fish_es_01.wav",
+     "ref": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "hyp": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "ms": 10967,
+     "audio_s": 4.09
+    },
+    {
+     "file": "phone_fish_es_02.wav",
+     "ref": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "hyp": "Gracias por comunicarse con nosotros, mi nombre es Carlos, y con mucho gusto le atiendo.",
+     "ms": 11032,
+     "audio_s": 5.48
+    },
+    {
+     "file": "phone_fish_es_03.wav",
+     "ref": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "hyp": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "ms": 12959,
+     "audio_s": 4.09
+    },
+    {
+     "file": "phone_fish_es_04.wav",
+     "ref": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "hyp": "Me podría proporcionar su número de cuenta o el correo electrónico registrado.",
+     "ms": 10729,
+     "audio_s": 4.64
+    },
+    {
+     "file": "phone_fish_es_05.wav",
+     "ref": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "hyp": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "ms": 10713,
+     "audio_s": 5.34
+    },
+    {
+     "file": "phone_fish_es_06.wav",
+     "ref": "Vamos a resolver esto juntos, no se preocupe.",
+     "hyp": "Vamos a resolver esto juntos, no se preocupe.",
+     "ms": 10138,
+     "audio_s": 2.88
+    },
+    {
+     "file": "phone_fish_es_07.wav",
+     "ref": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+     "hyp": "Su cita quedó agendada para el martes 15 de abril a las 3 de la tarde.",
+     "ms": 9973,
+     "audio_s": 4.18
+    },
+    {
+     "file": "phone_fish_es_08.wav",
+     "ref": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "hyp": "El monto total de su factura es de 2.345,60.",
+     "ms": 10690,
+     "audio_s": 5.48
+    },
+    {
+     "file": "phone_fish_es_09.wav",
+     "ref": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "hyp": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "ms": 10560,
+     "audio_s": 5.94
+    },
+    {
+     "file": "phone_fish_es_10.wav",
+     "ref": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "hyp": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "ms": 10039,
+     "audio_s": 5.94
+    },
+    {
+     "file": "phone_fish_es_11.wav",
+     "ref": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "hyp": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "ms": 10322,
+     "audio_s": 2.83
+    },
+    {
+     "file": "phone_fish_es_12.wav",
+     "ref": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinco-seis-siete-ocho.",
+     "hyp": "Lo confirmo que su ticket de soporte ha sido creado con el número ST45678.",
+     "ms": 10620,
+     "audio_s": 6.36
+    },
+    {
+     "file": "phone_fish_es_13.wav",
+     "ref": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su fecha de nacimiento?",
+     "hyp": "Para realizar el cambio necesito verificar su identidad. ¿Me puede confirmar su fecha de nacimiento?",
+     "ms": 10413,
+     "audio_s": 6.36
+    },
+    {
+     "file": "phone_fish_es_14.wav",
+     "ref": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "hyp": "El técnico estará visitando su domicilio el próximo jueves entre 9 de la mañana y 1 de la tarde.",
+     "ms": 12031,
+     "audio_s": 5.48
+    },
+    {
+     "file": "phone_fish_es_15.wav",
+     "ref": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "hyp": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "ms": 10564,
+     "audio_s": 5.53
+    },
+    {
+     "file": "phone_fish_es_16.wav",
+     "ref": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "hyp": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "ms": 10477,
+     "audio_s": 5.57
+    },
+    {
+     "file": "phone_fish_es_17.wav",
+     "ref": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "hyp": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "ms": 10399,
+     "audio_s": 6.41
+    },
+    {
+     "file": "phone_fish_es_18.wav",
+     "ref": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "hyp": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "ms": 10266,
+     "audio_s": 6.64
+    },
+    {
+     "file": "phone_fish_es_19.wav",
+     "ref": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "hyp": "Muchas gracias por su paciencia y por comunicarse con nosotros. Que tenga un excelente día.",
+     "ms": 10733,
+     "audio_s": 5.43
+    },
+    {
+     "file": "phone_fish_es_20.wav",
+     "ref": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "hyp": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "ms": 12852,
+     "audio_s": 4.18
+    },
+    {
+     "file": "phone_kokoro_ef_dora_01.wav",
+     "ref": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "hyp": "Buenos días. Le habla María del área de soporte técnico. ¿En qué le puedo ayudar?",
+     "ms": 10292,
+     "audio_s": 4.59
+    },
+    {
+     "file": "phone_kokoro_ef_dora_02.wav",
+     "ref": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "hyp": "Gracias por comunicarse con nosotros. Mi nombre es Carlos y con mucho gusto le atiendo.",
+     "ms": 10045,
+     "audio_s": 5.07
+    },
+    {
+     "file": "phone_kokoro_ef_dora_03.wav",
+     "ref": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "hyp": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "ms": 10412,
+     "audio_s": 4.41
+    },
+    {
+     "file": "phone_kokoro_ef_dora_04.wav",
+     "ref": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "hyp": "Me podría proporcionar su número de cuenta o el correo electrónico registrado.",
+     "ms": 10798,
+     "audio_s": 4.52
+    },
+    {
+     "file": "phone_kokoro_ef_dora_05.wav",
+     "ref": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "hyp": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "ms": 13420,
+     "audio_s": 5.42
+    },
+    {
+     "file": "phone_kokoro_ef_dora_06.wav",
+     "ref": "Vamos a resolver esto juntos, no se preocupe.",
+     "hyp": "Vamos a resolver esto juntos, no se preocupe.",
+     "ms": 11377,
+     "audio_s": 2.92
+    },
+    {
+     "file": "phone_kokoro_ef_dora_07.wav",
+     "ref": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+     "hyp": "Su cita quedó agendada para el martes 15 de abril a las 3 de la tarde.",
+     "ms": 10931,
+     "audio_s": 4.27
+    },
+    {
+     "file": "phone_kokoro_ef_dora_08.wav",
+     "ref": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "hyp": "El monto total de su factura es de $2,345.60.",
+     "ms": 10424,
+     "audio_s": 5.94
+    },
+    {
+     "file": "phone_kokoro_ef_dora_09.wav",
+     "ref": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "hyp": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "ms": 10530,
+     "audio_s": 6.07
+    },
+    {
+     "file": "phone_kokoro_ef_dora_10.wav",
+     "ref": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "hyp": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "ms": 11190,
+     "audio_s": 5.92
+    },
+    {
+     "file": "phone_kokoro_ef_dora_11.wav",
+     "ref": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "hyp": "Hay algo más en lo que le pueda ayudar el día de hoy.",
+     "ms": 10079,
+     "audio_s": 3.07
+    },
+    {
+     "file": "phone_kokoro_ef_dora_12.wav",
+     "ref": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinco-seis-siete-ocho.",
+     "hyp": "Le confirmo que su ticket de soporte ha sido creado con el número ST45678.",
+     "ms": 10590,
+     "audio_s": 5.79
+    },
+    {
+     "file": "phone_kokoro_ef_dora_13.wav",
+     "ref": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su fecha de nacimiento?",
+     "hyp": "Para realizar el cambio necesito verificar su identidad, me puede confirmar su fecha de nacimiento.",
+     "ms": 10551,
+     "audio_s": 5.89
+    },
+    {
+     "file": "phone_kokoro_ef_dora_14.wav",
+     "ref": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "hyp": "El técnico estará visitando su domicilio el próximo jueves entre 9 de la mañana y 1 de la tarde.",
+     "ms": 10894,
+     "audio_s": 6.22
+    },
+    {
+     "file": "phone_kokoro_ef_dora_15.wav",
+     "ref": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "hyp": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "ms": 10139,
+     "audio_s": 5.84
+    },
+    {
+     "file": "phone_kokoro_ef_dora_16.wav",
+     "ref": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "hyp": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "ms": 11123,
+     "audio_s": 6.17
+    },
+    {
+     "file": "phone_kokoro_ef_dora_17.wav",
+     "ref": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "hyp": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "ms": 10535,
+     "audio_s": 5.79
+    },
+    {
+     "file": "phone_kokoro_ef_dora_18.wav",
+     "ref": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "hyp": "Desafortunadamente, no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "ms": 10844,
+     "audio_s": 6.72
+    },
+    {
+     "file": "phone_kokoro_ef_dora_19.wav",
+     "ref": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "hyp": "Muchas gracias por su paciencia y por comunicarse con nosotros. Que tenga un excelente día.",
+     "ms": 10226,
+     "audio_s": 5.54
+    },
+    {
+     "file": "phone_kokoro_ef_dora_20.wav",
+     "ref": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "hyp": "Prefiere que le enviemos la información por correo electrónico o por mensaje de texto.",
+     "ms": 10577,
+     "audio_s": 4.83
+    },
+    {
+     "file": "phone_kokoro_em_alex_01.wav",
+     "ref": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "hyp": "Buenos días, le habla María del área de soporte técnico en que le puedo ayudar.",
+     "ms": 10248,
+     "audio_s": 4.62
+    },
+    {
+     "file": "phone_kokoro_em_alex_02.wav",
+     "ref": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "hyp": "Gracias por comunicarse con nosotros. Mi nombre es Carlos y con mucho gusto le atiendo.",
+     "ms": 11060,
+     "audio_s": 5.22
+    },
+    {
+     "file": "phone_kokoro_em_alex_03.wav",
+     "ref": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "hyp": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "ms": 10051,
+     "audio_s": 4.46
+    },
+    {
+     "file": "phone_kokoro_em_alex_04.wav",
+     "ref": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "hyp": "Me podría proporcionar su número de cuenta o el correo electrónico registrado.",
+     "ms": 10498,
+     "audio_s": 4.64
+    },
+    {
+     "file": "phone_kokoro_em_alex_05.wav",
+     "ref": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "hyp": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "ms": 10347,
+     "audio_s": 5.39
+    },
+    {
+     "file": "phone_kokoro_em_alex_06.wav",
+     "ref": "Vamos a resolver esto juntos, no se preocupe.",
+     "hyp": "Vamos a resolver esto juntos, no se preocupe.",
+     "ms": 10041,
+     "audio_s": 2.92
+    },
+    {
+     "file": "phone_kokoro_em_alex_07.wav",
+     "ref": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+     "hyp": "Su cita quedó agendada para el martes 15 de abril a las 3 de la tarde.",
+     "ms": 10318,
+     "audio_s": 4.34
+    },
+    {
+     "file": "phone_kokoro_em_alex_08.wav",
+     "ref": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "hyp": "El monto total de su factura es de $2,345,60.",
+     "ms": 11108,
+     "audio_s": 6.09
+    },
+    {
+     "file": "phone_kokoro_em_alex_09.wav",
+     "ref": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "hyp": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "ms": 10208,
+     "audio_s": 6.24
+    },
+    {
+     "file": "phone_kokoro_em_alex_10.wav",
+     "ref": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "hyp": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "ms": 10987,
+     "audio_s": 5.84
+    },
+    {
+     "file": "phone_kokoro_em_alex_11.wav",
+     "ref": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "hyp": "Hay algo más en lo que le pueda ayudar el día de hoy.",
+     "ms": 10369,
+     "audio_s": 3.24
+    },
+    {
+     "file": "phone_kokoro_em_alex_12.wav",
+     "ref": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinco-seis-siete-ocho.",
+     "hyp": "Le confirmo que su ticket de soporte ha sido creado con el número ST45678.",
+     "ms": 10311,
+     "audio_s": 5.99
+    },
+    {
+     "file": "phone_kokoro_em_alex_13.wav",
+     "ref": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su fecha de nacimiento?",
+     "hyp": "Para realizar el cambio necesito verificar su identidad, me puede confirmar su fecha de nacimiento.",
+     "ms": 13307,
+     "audio_s": 6.01
+    },
+    {
+     "file": "phone_kokoro_em_alex_14.wav",
+     "ref": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "hyp": "El técnico estará visitando su domicilio el próximo jueves entre 9 de la mañana y 1 de la tarde.",
+     "ms": 11155,
+     "audio_s": 6.07
+    },
+    {
+     "file": "phone_kokoro_em_alex_15.wav",
+     "ref": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "hyp": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "ms": 10717,
+     "audio_s": 6.09
+    },
+    {
+     "file": "phone_kokoro_em_alex_16.wav",
+     "ref": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "hyp": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "ms": 10921,
+     "audio_s": 6.29
+    },
+    {
+     "file": "phone_kokoro_em_alex_17.wav",
+     "ref": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "hyp": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "ms": 10690,
+     "audio_s": 5.87
+    },
+    {
+     "file": "phone_kokoro_em_alex_18.wav",
+     "ref": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "hyp": "Desafortunadamente, no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "ms": 10855,
+     "audio_s": 6.79
+    },
+    {
+     "file": "phone_kokoro_em_alex_19.wav",
+     "ref": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "hyp": "Muchas gracias por su paciencia y por comunicarse con nosotros. Que tenga un excelente día.",
+     "ms": 11638,
+     "audio_s": 5.64
+    },
+    {
+     "file": "phone_kokoro_em_alex_20.wav",
+     "ref": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "hyp": "prefiere que le enviemos la información por correo electrónico o por mensaje de texto.",
+     "ms": 10754,
+     "audio_s": 4.83
+    },
+    {
+     "file": "phone_kokoro_em_santa_01.wav",
+     "ref": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "hyp": "Buenos días. Le habla María del área de soporte técnico en que le puedo ayudar.",
+     "ms": 10604,
+     "audio_s": 4.74
+    },
+    {
+     "file": "phone_kokoro_em_santa_02.wav",
+     "ref": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "hyp": "Gracias por comunicarse con nosotros. Mi nombre es Carlos y con mucho gusto le atiendo.",
+     "ms": 10585,
+     "audio_s": 5.14
+    },
+    {
+     "file": "phone_kokoro_em_santa_03.wav",
+     "ref": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "hyp": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "ms": 10368,
+     "audio_s": 4.49
+    },
+    {
+     "file": "phone_kokoro_em_santa_04.wav",
+     "ref": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "hyp": "Me podría proporcionar su número de cuenta o el correo electrónico registrado.",
+     "ms": 11552,
+     "audio_s": 4.74
+    },
+    {
+     "file": "phone_kokoro_em_santa_05.wav",
+     "ref": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "hyp": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "ms": 11030,
+     "audio_s": 5.39
+    },
+    {
+     "file": "phone_kokoro_em_santa_06.wav",
+     "ref": "Vamos a resolver esto juntos, no se preocupe.",
+     "hyp": "Vamos a resolver esto juntos, no se preocupe.",
+     "ms": 10541,
+     "audio_s": 2.89
+    },
+    {
+     "file": "phone_kokoro_em_santa_07.wav",
+     "ref": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+     "hyp": "Tu cita quedó agendada para el martes 15 de abril a las 3 de la tarde.",
+     "ms": 10313,
+     "audio_s": 4.37
+    },
+    {
+     "file": "phone_kokoro_em_santa_08.wav",
+     "ref": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "hyp": "El monto total de su factura es de 2.345 pesos con 60 centavos.",
+     "ms": 10444,
+     "audio_s": 6.24
+    },
+    {
+     "file": "phone_kokoro_em_santa_09.wav",
+     "ref": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "hyp": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "ms": 10535,
+     "audio_s": 6.24
+    },
+    {
+     "file": "phone_kokoro_em_santa_10.wav",
+     "ref": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "hyp": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "ms": 11250,
+     "audio_s": 5.99
+    },
+    {
+     "file": "phone_kokoro_em_santa_11.wav",
+     "ref": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "hyp": "Hay algo más en lo que le pueda ayudar el día de hoy.",
+     "ms": 10053,
+     "audio_s": 3.17
+    },
+    {
+     "file": "phone_kokoro_em_santa_12.wav",
+     "ref": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinco-seis-siete-ocho.",
+     "hyp": "Le confirmo que su ticket de soporte ha sido creado con el número ST45678.",
+     "ms": 10203,
+     "audio_s": 6.12
+    },
+    {
+     "file": "phone_kokoro_em_santa_13.wav",
+     "ref": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su fecha de nacimiento?",
+     "hyp": "Para realizar el cambio necesito verificar su identidad, me puede confirmar su fecha de nacimiento.",
+     "ms": 10542,
+     "audio_s": 6.01
+    },
+    {
+     "file": "phone_kokoro_em_santa_14.wav",
+     "ref": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "hyp": "El técnico estará visitando su domicilio el próximo jueves entre 9 de la mañana y 1 de la tarde.",
+     "ms": 10421,
+     "audio_s": 6.12
+    },
+    {
+     "file": "phone_kokoro_em_santa_15.wav",
+     "ref": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "hyp": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "ms": 10972,
+     "audio_s": 6.14
+    },
+    {
+     "file": "phone_kokoro_em_santa_16.wav",
+     "ref": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "hyp": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "ms": 10364,
+     "audio_s": 6.49
+    },
+    {
+     "file": "phone_kokoro_em_santa_17.wav",
+     "ref": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "hyp": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "ms": 10343,
+     "audio_s": 5.92
+    },
+    {
+     "file": "phone_kokoro_em_santa_18.wav",
+     "ref": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "hyp": "Desafortunadamente, no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "ms": 10413,
+     "audio_s": 6.84
+    },
+    {
+     "file": "phone_kokoro_em_santa_19.wav",
+     "ref": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "hyp": "Muchas gracias por su paciencia y por comunicarse con nosotros. Que tenga un excelente día.",
+     "ms": 10267,
+     "audio_s": 5.67
+    },
+    {
+     "file": "phone_kokoro_em_santa_20.wav",
+     "ref": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "hyp": "Prefiere que le enviemos la información por correo electrónico o por mensaje de texto.",
+     "ms": 10041,
+     "audio_s": 5.01
+    },
+    {
+     "file": "phone_xtts_es_01.wav",
+     "ref": "Buenos días, le habla María del área de soporte técnico, ¿en qué le puedo ayudar?",
+     "hyp": "Buenos días. Le habla María del área de soporte técnico. ¿En qué le puedo ayudar?",
+     "ms": 12169,
+     "audio_s": 5.52
+    },
+    {
+     "file": "phone_xtts_es_02.wav",
+     "ref": "Gracias por comunicarse con nosotros, mi nombre es Carlos y con mucho gusto le atiendo.",
+     "hyp": "Gracias por comunicarse con nosotros mi nombre es Carlos y con mucho gusto le atiendo.",
+     "ms": 10711,
+     "audio_s": 4.41
+    },
+    {
+     "file": "phone_xtts_es_03.wav",
+     "ref": "Permítame un momento mientras verifico la información en nuestro sistema.",
+     "hyp": "Permítame un momento, mientras verifico la información en nuestro sistema. Bye.",
+     "ms": 10471,
+     "audio_s": 5.61
+    },
+    {
+     "file": "phone_xtts_es_04.wav",
+     "ref": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "hyp": "¿Me podría proporcionar su número de cuenta o el correo electrónico registrado?",
+     "ms": 10265,
+     "audio_s": 4.78
+    },
+    {
+     "file": "phone_xtts_es_05.wav",
+     "ref": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "hyp": "Entiendo perfectamente su situación y le ofrezco una disculpa por la molestia ocasionada.",
+     "ms": 10694,
+     "audio_s": 5.2
+    },
+    {
+     "file": "phone_xtts_es_06.wav",
+     "ref": "Vamos a resolver esto juntos, no se preocupe.",
+     "hyp": "Vamos a resolver esto juntos, no se preocupe.",
+     "ms": 9483,
+     "audio_s": 3.2
+    },
+    {
+     "file": "phone_xtts_es_07.wav",
+     "ref": "Su cita quedó agendada para el martes quince de abril a las tres de la tarde.",
+     "hyp": "Su cita quedó agendada para el martes 15 de abril a las 3 de la tarde.",
+     "ms": 11213,
+     "audio_s": 5.43
+    },
+    {
+     "file": "phone_xtts_es_08.wav",
+     "ref": "El monto total de su factura es de dos mil trescientos cuarenta y cinco pesos con sesenta centavos.",
+     "hyp": "El monto total de su factura es de $2,345 con 60 centavos.",
+     "ms": 10417,
+     "audio_s": 6.91
+    },
+    {
+     "file": "phone_xtts_es_09.wav",
+     "ref": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "hyp": "Le voy a transferir con un especialista del área técnica para que le brinden una solución más detallada.",
+     "ms": 10412,
+     "audio_s": 5.38
+    },
+    {
+     "file": "phone_xtts_es_10.wav",
+     "ref": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "hyp": "Lamentablemente esa opción no está disponible en este momento, pero le puedo ofrecer una alternativa.",
+     "ms": 9715,
+     "audio_s": 6.73
+    },
+    {
+     "file": "phone_xtts_es_11.wav",
+     "ref": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "hyp": "¿Hay algo más en lo que le pueda ayudar el día de hoy?",
+     "ms": 10211,
+     "audio_s": 3.15
+    },
+    {
+     "file": "phone_xtts_es_12.wav",
+     "ref": "Le confirmo que su ticket de soporte ha sido creado con el número ST-cuatro-cinco-seis-siete-ocho.",
+     "hyp": "Le confirmo que su ticket de soporte ha sido creado con el número ESEN45678.",
+     "ms": 10523,
+     "audio_s": 7.33
+    },
+    {
+     "file": "phone_xtts_es_13.wav",
+     "ref": "Para realizar el cambio necesito verificar su identidad, ¿me puede confirmar su fecha de nacimiento?",
+     "hyp": "Para realizar el cambio, necesito verificar su identidad. ¿Me puede confirmar su fecha de nacimiento?",
+     "ms": 11151,
+     "audio_s": 5.71
+    },
+    {
+     "file": "phone_xtts_es_14.wav",
+     "ref": "El técnico estará visitando su domicilio el próximo jueves entre nueve de la mañana y una de la tarde.",
+     "hyp": "El técnico estará visitando su domicilio el próximo jueves entre 9 de la mañana y 1 de la tarde.",
+     "ms": 10121,
+     "audio_s": 6.22
+    },
+    {
+     "file": "phone_xtts_es_15.wav",
+     "ref": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "hyp": "Entiendo su frustración y quiero asegurarle que estamos trabajando para resolverlo lo antes posible.",
+     "ms": 10120,
+     "audio_s": 5.43
+    },
+    {
+     "file": "phone_xtts_es_16.wav",
+     "ref": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "hyp": "Le recomiendo reiniciar el equipo y esperar aproximadamente dos minutos antes de volver a conectarse.",
+     "ms": 9935,
+     "audio_s": 5.8
+    },
+    {
+     "file": "phone_xtts_es_17.wav",
+     "ref": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "hyp": "Su pago fue procesado exitosamente y recibirá un correo de confirmación en los próximos minutos.",
+     "ms": 10060,
+     "audio_s": 7.7
+    },
+    {
+     "file": "phone_xtts_es_18.wav",
+     "ref": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "hyp": "Desafortunadamente no cuento con esa información, pero con gusto le transfiero con alguien que sí pueda ayudarle.",
+     "ms": 11344,
+     "audio_s": 6.73
+    },
+    {
+     "file": "phone_xtts_es_19.wav",
+     "ref": "Muchas gracias por su paciencia y por comunicarse con nosotros, que tenga un excelente día.",
+     "hyp": "Muchas gracias por su paciencia y por comunicarse con nosotros. Que tenga un excelente día.",
+     "ms": 10360,
+     "audio_s": 5.89
+    },
+    {
+     "file": "phone_xtts_es_20.wav",
+     "ref": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "hyp": "¿Prefiere que le enviemos la información por correo electrónico o por mensaje de texto?",
+     "ms": 9930,
+     "audio_s": 4.96
+    }
+   ]
+  }
+ }
+}
