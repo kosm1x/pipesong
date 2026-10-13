@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     app_port: int = 8080
     app_public_url: str = ""  # e.g. "ws://206.168.83.248:8080" — used in Telnyx webhook if set
     disclosure_text: str = "Esta llamada está siendo grabada para fines de calidad y entrenamiento."
+    prerecorded_dir: str = "data/prerecorded"  # disclosure clips: disclosure/<sha256[:16]>.wav; missing = TTS fallback
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

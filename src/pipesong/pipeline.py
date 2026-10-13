@@ -30,6 +30,7 @@ from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 
 from pipesong.config import settings
+from pipesong.prerecorded.disclosure import DisclosureClipPlayer
 from pipesong.processors import (
     DisclosureGate,
     MetricsCollector,
@@ -66,6 +67,7 @@ def create_pipeline(
     eot_threshold: float | None = None,
     eager_eot_threshold: float | None = None,
     eot_timeout_ms: int | None = None,
+    disclosure_text: str | None = None,
 ) -> tuple["PipelineTask", "ToolCallProcessor | None"]:
     """Build a Pipecat pipeline for a single call."""
 
@@ -178,7 +180,8 @@ def create_pipeline(
     sentence_buffer = SentenceStreamBuffer()
 
     # Pipeline: audio in → STT → [disclosure gate] → [user transcript] → [RAG] → context →
-    # LLM → [tool processor] → [assistant transcript] → filter → sentence buffer → TTS →
+    # LLM → [tool processor] → [assistant transcript] → filter → sentence buffer →
+    # [disclosure clip] → TTS →
     # [metrics] → audio out
     # (Disclosure/tool-call muting lives on the user aggregator via user_mute_strategies;
     # DisclosureGate keeps pre-disclosure noise out of TranscriptCapture/RAGProcessor,
@@ -220,8 +223,12 @@ def create_pipeline(
     processors.extend([
         spanish_filter,
         sentence_buffer,
-        tts,
     ])
+    if disclosure_text:
+        # A.0: swaps the disclosure TTSSpeakFrame for its pre-recorded clip. Must sit
+        # downstream of STT — any AudioRawFrame upstream of it is fed to Flux.
+        processors.append(DisclosureClipPlayer(settings.prerecorded_dir, voice, disclosure_text))
+    processors.append(tts)
     # MetricsCollector after TTS — captures MetricsFrame from all upstream services
     if call_id and session_factory:
         processors.append(MetricsCollector(call_id=call_id, session_factory=session_factory))

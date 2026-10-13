@@ -27,6 +27,16 @@
 > GPU box; Telnyx number liveness; Flux pricing sign-off at $0.0078/min). Meanwhile Phases A.0/A.1
 > (pre-recorded disclosure + mixer) and B.1 (MCP over the existing REST) build on the VPS with no
 > GPU; their gates (A.2/B.2) run in the same GPU window as Phase 2.
+>
+> **UPDATE 2026-10-13 — A.0 SHIPPED (pre-recorded disclosure).** The disclosure now plays a
+> pre-rendered clip when `data/prerecorded/disclosure/<sha256[:16]>.wav` matches the agent's
+> voice + exact text, else falls back to TTS as before. The clip is swapped in for the
+> disclosure `TTSSpeakFrame` right before TTS (downstream of STT). Render clips on the box with
+> `PYTHONPATH=src .venv/bin/python scripts/generate_disclosure_clips.py --from-db` (CPU,
+> kokoro-onnx, ~340 MB model download shared with live TTS; `.wav` files are gitignored).
+> The repo's first tests landed (`pytest.ini`, `tests/`; install `requirements-dev.txt`, run
+> `.venv/bin/python -m pytest tests/ -q`). In the GPU window, confirm on a live call: log line `disclosure: pre-recorded
+> clip`, the caller hears it in full, and user speech is accepted right after it ends.
 
 ## State
 

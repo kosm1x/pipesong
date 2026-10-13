@@ -224,6 +224,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
         await audio_buffer.start_recording()
 
+        disclosure_text = agent_disclosure or settings.disclosure_text
         task, tool_processor = create_pipeline(
             transport=transport,
             system_prompt=agent_prompt,
@@ -241,12 +242,12 @@ async def websocket_endpoint(websocket: WebSocket):
             eot_threshold=agent_eot_threshold,
             eager_eot_threshold=agent_eager_eot_threshold,
             eot_timeout_ms=agent_eot_timeout_ms,
+            disclosure_text=disclosure_text,
         )
         if tool_processor:
             tool_processor.set_task(task)
 
         # Recording disclosure (legal requirement — Mexican telecom law)
-        disclosure_text = agent_disclosure or settings.disclosure_text
         await task.queue_frame(TTSSpeakFrame(text=disclosure_text, append_to_context=False))
 
         @transport.event_handler("on_client_disconnected")
