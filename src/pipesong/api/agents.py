@@ -192,6 +192,7 @@ class AgentLatencyResponse(BaseModel):
     llm_ttft_ms: PercentileStats
     tts_ttfb_ms: PercentileStats
     e2e_ms: PercentileStats
+    ttfa_ms: PercentileStats
 
 
 def _percentiles(values: list[float]) -> PercentileStats:
@@ -239,4 +240,5 @@ async def get_agent_latency(
         llm_ttft_ms=_percentiles(_vals("llm_ttft_ms")),
         tts_ttfb_ms=_percentiles(_vals("tts_ttfb_ms")),
         e2e_ms=_percentiles(_vals("e2e_ms")),
+        ttfa_ms=_percentiles(_vals("ttfa_ms")),
     )

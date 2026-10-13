@@ -75,6 +75,8 @@ class TurnLatencyResponse(BaseModel):
     llm_ttft_ms: float | None
     tts_ttfb_ms: float | None
     e2e_ms: float | None
+    ttfa_ms: float | None
+    prerecorded_hits: int | None
 
     model_config = {"from_attributes": True}
 
@@ -111,6 +113,7 @@ async def get_call_latency(call_id: uuid.UUID, session: AsyncSession = Depends(g
         "avg_llm_ttft_ms": _avg("llm_ttft_ms"),
         "avg_tts_ttfb_ms": _avg("tts_ttfb_ms"),
         "avg_e2e_ms": _avg("e2e_ms"),
+        "avg_ttfa_ms": _avg("ttfa_ms"),
         "turn_count": len(rows),
     }
 

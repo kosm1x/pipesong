@@ -7,15 +7,19 @@ import logging
 from typing import Any
 
 from pipecat.frames.frames import (
+    BotStartedSpeakingFrame,
     BotStoppedSpeakingFrame,
+    CancelFrame,
     EndFrame,
     InterruptionFrame,
     LLMFullResponseEndFrame,
+    LLMFullResponseStartFrame,
     LLMRunFrame,
     LLMTextFrame,
     MetricsFrame,
     TTSSpeakFrame,
     TranscriptionFrame,
+    UserStoppedSpeakingFrame,
 )
 from pipecat.metrics.metrics import TTFBMetricsData
 from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
@@ -104,6 +108,27 @@ class MetricsCollector(FrameProcessor):
 
     Place at the end of the pipeline (after TTS, before transport output) to capture
     all metrics frames flowing through.
+
+    ``tts_ttfb_ms`` is SYNTHESIS TTFB (TTS request -> first audio chunk), the first one
+    reported after the turn's last ``LLMFullResponseStartFrame``; speech before it
+    (disclosure, tool fillers) never counts. A corpus clip reports ~0 here.
+
+    ``ttfa_ms`` is time to first audio as the caller hears it: from the downstream
+    ``UserStoppedSpeakingFrame`` (Flux EndOfTurn, broadcast right after the final
+    transcript) to the next ``BotStartedSpeakingFrame`` coming UPSTREAM from the output
+    transport (emitted just before the first chunk is written). Recorded once per user
+    turn. Both are SystemFrames, so neither waits behind queued audio on the way here
+    (the user aggregator forwards the former: ``llm_response_universal.py:824-825``).
+    The stop-timeout path (``turns/user_turn_controller.py:355-359``) can send a second
+    ``UserStoppedSpeakingFrame`` when Flux ends a turn with no transcript; it re-stamps
+    the turn end and is harmless because no response follows.
+
+    ``prerecorded_hits`` counts corpus clips played in the turn (one emitter TTFB each).
+
+    Ordering: MetricsFrame is a SystemFrame, LLMFullResponse{Start,End}Frame are control
+    frames, and pipecat 1.7 processes the two classes on separate tasks. The TTFB window
+    relies on the live gaps between them (LLM time to first sentence, synthesis time);
+    the ttfa flush handles BotStartedSpeaking landing before or after the response end.
     """
 
     # Map Pipecat service class names to our column names
@@ -114,6 +139,7 @@ class MetricsCollector(FrameProcessor):
         "llm": "llm_ttft_ms",
         "kokoro": "tts_ttfb_ms",
         "tts": "tts_ttfb_ms",
+        "prerecorded": "tts_ttfb_ms",  # A.1 PreRecordedClipEmitter: synthesis TTFB of a clip (~0)
     }
 
     def __init__(self, call_id, session_factory, **kwargs):
@@ -122,6 +148,8 @@ class MetricsCollector(FrameProcessor):
         self._session_factory = session_factory
         self._turn_index = 0
         self._current_turn: dict[str, float] = {}
+        self._eot: float | None = None  # monotonic user end of turn, awaiting first audio
+        self._flush_deferred = False  # response ended before its first audio played
 
     def _classify_metric(self, processor_name: str) -> str | None:
         """Map a Pipecat processor name like 'DeepgramSTTService' to a column name."""
@@ -137,14 +165,50 @@ class MetricsCollector(FrameProcessor):
         if isinstance(frame, MetricsFrame):
             for metric in frame.data:
                 if isinstance(metric, TTFBMetricsData):
+                    if "prerecorded" in metric.processor.lower():
+                        self._current_turn["prerecorded_hits"] = (
+                            self._current_turn.get("prerecorded_hits", 0) + 1
+                        )
                     column = self._classify_metric(metric.processor)
-                    if column:
+                    if column == "tts_ttfb_ms":
+                        # Kokoro reports once per sentence and a corpus clip once per hit:
+                        # keep the first; the response start drops any earlier value.
+                        self._current_turn.setdefault(column, metric.value * 1000)
+                    elif column:
                         # Pipecat reports TTFB in seconds, we store in ms
                         self._current_turn[column] = metric.value * 1000
 
+        elif isinstance(frame, LLMFullResponseStartFrame):
+            # Out-of-response speech (disclosure, tool fillers) never counts: drop its TTFB.
+            # A tool turn's first response never reaches here ended (ToolCallProcessor
+            # swallows its LLMFullResponseEndFrame), so the follow-up restarts the window.
+            self._current_turn.pop("tts_ttfb_ms", None)
+
+        elif isinstance(frame, UserStoppedSpeakingFrame) and direction == FrameDirection.DOWNSTREAM:
+            if self._flush_deferred:
+                await self._flush_turn()  # previous turn never played audio
+            self._eot = time.monotonic()
+
+        elif isinstance(frame, BotStartedSpeakingFrame) and direction == FrameDirection.UPSTREAM:
+            if self._eot is not None:
+                self._current_turn["ttfa_ms"] = (time.monotonic() - self._eot) * 1000
+                self._eot = None
+                if self._flush_deferred:
+                    await self._flush_turn()
+
         elif isinstance(frame, LLMFullResponseEndFrame):
             if self._current_turn:
-                await self._flush_turn()
+                if self._eot is not None:
+                    # A corpus clip's whole response can pass here before the transport
+                    # plays its first chunk: hold the row until BotStartedSpeaking.
+                    self._flush_deferred = True
+                else:
+                    await self._flush_turn()
+
+        elif isinstance(frame, (EndFrame, CancelFrame)) and self._current_turn:
+            # Hang-up mid-turn, or an end_call turn (ToolCallProcessor swallows that
+            # response's LLMFullResponseEndFrame): write what the turn has.
+            await self._flush_turn()
 
         await self.push_frame(frame, direction)
 
@@ -152,6 +216,7 @@ class MetricsCollector(FrameProcessor):
         """Persist accumulated metrics for the current turn."""
         metrics = self._current_turn
         self._current_turn = {}
+        self._flush_deferred = False
 
         # Sum of component TTFBs (approximation — excludes queue/network/buffering time)
         components = [metrics.get("stt_ms"), metrics.get("llm_ttft_ms"), metrics.get("tts_ttfb_ms")]
@@ -167,15 +232,19 @@ class MetricsCollector(FrameProcessor):
                     llm_ttft_ms=metrics.get("llm_ttft_ms"),
                     tts_ttfb_ms=metrics.get("tts_ttfb_ms"),
                     e2e_ms=e2e,
+                    ttfa_ms=metrics.get("ttfa_ms"),
+                    prerecorded_hits=int(metrics.get("prerecorded_hits", 0)),
                 ))
                 await session.commit()
             logger.info(
-                "Latency turn %d: stt=%.0fms llm=%.0fms tts=%.0fms e2e=%.0fms",
+                "Latency turn %d: stt=%.0fms llm=%.0fms tts=%.0fms e2e=%.0fms ttfa=%.0fms hits=%d",
                 self._turn_index,
                 metrics.get("stt_ms", 0),
                 metrics.get("llm_ttft_ms", 0),
                 metrics.get("tts_ttfb_ms", 0),
                 e2e or 0,
+                metrics.get("ttfa_ms", 0),
+                metrics.get("prerecorded_hits", 0),
             )
         except Exception as e:
             logger.error("MetricsCollector: failed to persist turn %d: %s", self._turn_index, e)

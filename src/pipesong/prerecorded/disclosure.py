@@ -7,7 +7,7 @@ collapsed to one space, then stripped. Keying by voice + text is the safety
 property: a clip only plays when it is exactly the text the agent would otherwise
 have spoken through TTS, in the agent's own voice. Editing an agent's disclosure
 or voice changes the key, so a stale clip is never served; the call falls back to
-TTS until a new clip is rendered (scripts/generate_disclosure_clips.py).
+TTS until a new clip is rendered (scripts/generate_clips.py).
 
 Where the clip enters: main.py still queues the disclosure as a ``TTSSpeakFrame``
 at the pipeline head. ``DisclosureClipPlayer``, placed immediately before the TTS
@@ -24,11 +24,13 @@ the clip to its own output rate (8 kHz on Telnyx), so clips keep their native ra
 import hashlib
 import logging
 import unicodedata
-import wave
 from pathlib import Path
 
 from pipecat.frames.frames import TTSAudioRawFrame, TTSSpeakFrame, TTSStoppedFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+
+from pipesong.config import settings
+from pipesong.prerecorded.wav import read_pcm16_mono
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,7 @@ def load_disclosure_clip(base_dir: str | Path, voice: str, text: str) -> TTSAudi
     """Load the clip for ``voice`` + ``text`` as one audio frame, or None to fall back to TTS.
 
     Returns None (logged at INFO) when the file is missing, unreadable, not 16-bit
-    PCM mono, or holds no audio. A missing clip logs at WARNING when the disclosure
+    PCM mono, or holds no audio; None (WARNING) when not at settings.prerecorded_sample_rate. A missing clip logs at WARNING when the disclosure
     dir exists: clips were rendered, just not for this voice + text.
     """
     path = disclosure_clip_path(base_dir, voice, text)
@@ -57,25 +59,10 @@ def load_disclosure_clip(base_dir: str | Path, voice: str, text: str) -> TTSAudi
         level = logging.WARNING if path.parent.is_dir() else logging.INFO
         logger.log(level, "disclosure clip not found: %s", path)
         return None
-    try:
-        with wave.open(str(path), "rb") as wf:
-            channels = wf.getnchannels()
-            sample_width = wf.getsampwidth()
-            sample_rate = wf.getframerate()
-            n_frames = wf.getnframes()
-            audio = wf.readframes(n_frames)
-    except (OSError, EOFError, wave.Error) as e:
-        logger.info("disclosure clip unreadable: %s (%s)", path, e)
+    clip = read_pcm16_mono(path, "disclosure clip", settings.prerecorded_sample_rate)
+    if clip is None:
         return None
-    if channels != 1 or sample_width != 2:
-        logger.info(
-            "disclosure clip rejected: %s (%d channel(s), %d-bit; need mono 16-bit PCM)",
-            path, channels, sample_width * 8,
-        )
-        return None
-    if not audio or len(audio) != n_frames * 2:
-        logger.info("disclosure clip empty or truncated: %s", path)
-        return None
+    audio, sample_rate = clip
     return TTSAudioRawFrame(audio=audio, sample_rate=sample_rate, num_channels=1)
 
 

@@ -37,6 +37,22 @@
 > The repo's first tests landed (`pytest.ini`, `tests/`; install `requirements-dev.txt`, run
 > `.venv/bin/python -m pytest tests/ -q`). In the GPU window, confirm on a live call: log line `disclosure: pre-recorded
 > clip`, the caller hears it in full, and user speech is accepted right after it ends.
+>
+> **UPDATE 2026-10-13 — A.1 SHIPPED (phrase corpus + mixer).** LLM clauses that exactly match a
+> pre-rendered phrase (case/punctuation/Unicode-form-insensitive but sentence-type-sensitive, same voice) now play a clip
+> from `data/prerecorded/corpus/` instead of Kokoro, and still enter the LLM context in order.
+> Render on the box with `PYTHONPATH=src .venv/bin/python scripts/generate_clips.py --corpus
+> data/prerecorded/starter-corpus-es.txt --voice em_alex --prune` (10 generic es-MX clauses; `.wav`
+> gitignored, `manifest.json` tracked). Gate A.2 in the GPU window: TTFA on corpus phrases and
+> match precision from the per-hit `mixer: hit <key> <text>` and per-call `mixer: N hit(s),
+> M miss(es)` INFO lines; A/B arm via `PRERECORDED_MIXER_ENABLED=false`. **Apply
+> `scripts/migrations/2026-10-13-call-latency-ttfa.sql` before deploy** (adds `call_latency.ttfa_ms`
+> and `prerecorded_hits`; new code against an un-migrated DB fails every latency write). TTFA for
+> A.2 = `call_latency.ttfa_ms` (Flux end of turn → bot's first audio at the output transport),
+> split by `prerecorded_hits` (0 = all-TTS turn, > 0 = clips played; "was the first audio a clip?"
+> also comes from `prerecorded_hits` with `ttfa_ms`); `tts_ttfb_ms` is synthesis TTFB (~0 on a
+> clip, can be NULL on an instant hit), not TTFA and not a hit signal. Rows written before this deploy (date: ____, operator fills)
+> hold NULL in both new columns and last-sentence TTFB in `tts_ttfb_ms`.
 
 ## State
 

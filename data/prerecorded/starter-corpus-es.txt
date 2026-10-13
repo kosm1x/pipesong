@@ -1,0 +1,30 @@
+# A.1 starter corpus (generic, es-MX, formal "usted"). Render with:
+#   PYTHONPATH=src .venv/bin/python scripts/generate_clips.py --corpus data/prerecorded/starter-corpus-es.txt --voice em_alex --prune
+# One clause per line: SpanishOnlyFilter turns commas into periods and SentenceStreamBuffer
+# splits at . ? !, so the mixer only ever sees LLM output one clause at a time
+# ("Un momento, por favor." arrives as "Un momento." + "por favor.").
+# Matching ignores case, punctuation, whitespace and Unicode form; every word and the sentence
+# type (? or ¿ = question, else ! or ¡ = exclamation, else statement) must match.
+# The recording disclosure is not here: A.0 serves it from data/prerecorded/disclosure/.
+
+# Greeting
+Buenos días.
+¿En qué le puedo ayudar?
+
+# Hold / verification (the last two are ToolCallProcessor fillers, matched verbatim)
+Un momento.
+Permítame verificar esa información.
+Estoy consultando la información.
+Déjeme revisar eso por usted.
+
+# Clarification
+¿Podría repetirme su nombre?
+
+# Appointment confirmation (stub; per-deployment corpora add the specifics)
+Su cita ha quedado confirmada.
+
+# Hand-off to a human (transfer_call's own line, matched verbatim)
+Lo transfiero en este momento.
+
+# Closing (end_call's default reason, matched verbatim)
+Gracias por su llamada.

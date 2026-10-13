@@ -34,6 +34,9 @@ class CallLatency(Base):
     llm_ttft_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     tts_ttfb_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     e2e_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # A.1/A.2: user end of turn -> bot's first audio, and corpus clips played this turn.
+    ttfa_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    prerecorded_hits: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
 

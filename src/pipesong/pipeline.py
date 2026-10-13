@@ -30,7 +30,9 @@ from pipecat.transports.websocket.fastapi import FastAPIWebsocketTransport
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 
 from pipesong.config import settings
+from pipesong.prerecorded.corpus import Corpus
 from pipesong.prerecorded.disclosure import DisclosureClipPlayer
+from pipesong.prerecorded.mixer import PreRecordedClipEmitter, PreRecordedMixer
 from pipesong.processors import (
     DisclosureGate,
     MetricsCollector,
@@ -181,7 +183,7 @@ def create_pipeline(
 
     # Pipeline: audio in → STT → [disclosure gate] → [user transcript] → [RAG] → context →
     # LLM → [tool processor] → [assistant transcript] → filter → sentence buffer →
-    # [disclosure clip] → TTS →
+    # [disclosure clip] → [corpus mixer] → TTS → [corpus clip emitter] →
     # [metrics] → audio out
     # (Disclosure/tool-call muting lives on the user aggregator via user_mute_strategies;
     # DisclosureGate keeps pre-disclosure noise out of TranscriptCapture/RAGProcessor,
@@ -228,7 +230,13 @@ def create_pipeline(
         # A.0: swaps the disclosure TTSSpeakFrame for its pre-recorded clip. Must sit
         # downstream of STT — any AudioRawFrame upstream of it is fed to Flux.
         processors.append(DisclosureClipPlayer(settings.prerecorded_dir, voice, disclosure_text))
+    if settings.prerecorded_mixer_enabled:
+        # A.1: a corpus hit becomes a marker frame that TTS queues in order behind earlier
+        # sentences' audio; the emitter right after TTS expands it into TTS-shaped frames.
+        processors.append(PreRecordedMixer(Corpus.load(settings.prerecorded_dir, voice)))
     processors.append(tts)
+    if settings.prerecorded_mixer_enabled:
+        processors.append(PreRecordedClipEmitter())
     # MetricsCollector after TTS — captures MetricsFrame from all upstream services
     if call_id and session_factory:
         processors.append(MetricsCollector(call_id=call_id, session_factory=session_factory))

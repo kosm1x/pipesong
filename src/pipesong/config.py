@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     app_public_url: str = ""  # e.g. "ws://206.168.83.248:8080" — used in Telnyx webhook if set
     disclosure_text: str = "Esta llamada está siendo grabada para fines de calidad y entrenamiento."
     prerecorded_dir: str = "data/prerecorded"  # disclosure clips: disclosure/<sha256[:16]>.wav; missing = TTS fallback
+    prerecorded_sample_rate: int = 24000  # every clip must be at this rate (kokoro-onnx native); others are skipped
+    prerecorded_mixer_enabled: bool = True  # A.1 corpus clips (corpus/ under prerecorded_dir); False = all TTS (A.2 A/B)
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
