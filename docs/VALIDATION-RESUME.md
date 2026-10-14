@@ -53,6 +53,13 @@
 > also comes from `prerecorded_hits` with `ttfa_ms`); `tts_ttfb_ms` is synthesis TTFB (~0 on a
 > clip, can be NULL on an instant hit), not TTFA and not a hit signal. Rows written before this deploy (date: ____, operator fills)
 > hold NULL in both new columns and last-sentence TTFB in `tts_ttfb_ms`.
+>
+> **UPDATE 2026-10-13 — B.1 SHIPPED (MCP server over the REST API).** `src/pipesong/mcp/` exposes
+> 8 tools (`health`, `agent_create/update/list/get/delete`, `call_start`, `call_status`) over stdio,
+> calling the running API at `PIPESONG_API_URL` (required) with `PIPESONG_API_KEY` (set to the
+> API's `API_KEY`); it reads only those env vars, no `.env`, and imports no pipecat. Run and
+> client config in `docs/MCP.md`. Gate B.2 in the GPU window: through the MCP, an agent creates a PipeSong agent,
+> places a test call with `call_start` and reads it back with `call_status` (transcript + latency).
 
 ## State
 

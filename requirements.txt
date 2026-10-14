@@ -34,3 +34,6 @@ python-multipart==0.0.32
 # Config
 python-dotenv==1.2.2
 pydantic-settings==2.14.2
+
+# MCP server (src/pipesong/mcp)
+mcp==2.3.0
