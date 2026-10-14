@@ -8,6 +8,11 @@
 - Flux does STT, end-of-turn detection and barge-in (`src/pipesong/pipeline.py:90`). Any STT swap must also bring back turn detection (Silero VAD + Smart-Turn), so price that into the integration cost.
 - Read a model's license for how it treats OUTPUTS, not just commercial thresholds. NetEase's R2T2 license counts transcripts as derivative works that must not improve another commercial model.
 
+- Read the INSTALLED package before writing against a remembered API (pipecat `_handle_bot_speech`, mcp 2.x `MCPServer`, kokoro-onnx already shipped by `pipecat-ai[kokoro]`): `ls .venv/lib/python3.12/site-packages/<pkg>` first. Seen on A.0 and B.1.
+- Any frame injected into the Pipecat pipeline is defined by its POSITION: audio at the head is STT input; TTS-shaped frames before `TTSService` are re-synthesized or overtake queued audio. State where it enters and prove it with the real `create_pipeline` order test + a fake-STT/real-chain test, never a hand-built pipeline alone. Seen on A.0 and A.1.
+- A green suite from the implementer is not the gate: every bundle so far had one critical only a qa-auditor round with mutants found (STT leak, question/statement key collision, credential scope). Run R1→R2(→R3) scoped to "what changed".
+- A gate metric must span two REAL events (user EOT → bot first audio) and have a test where it can come out high; a number computed between two in-process calls cannot fail.
+
 ## 2026-09-23 — Confucius4-R2T2 streaming-ASR probe (gate 1)
 - **Avoid:** trusting the roadmap's "local faster-whisper fallback" as a live slot. It exists only in `benchmarks/scripts/stt_validation.py` and is not wired into the pipeline → grep `src/pipesong/` for a fallback before calling a candidate a "drop-in".
 - **Mistake:** ran the first probe as a session-bound background task and lost it on disconnect → run any job longer than a few minutes under `systemd-run --unit <name>`, resumable (one JSON line per clip), from the start.
@@ -35,3 +40,9 @@
 - **Better:** pin an API wrapper to the real routes by matching each recorded request with `route.matches(scope) == Match.FULL` on `pipesong.main.app`. FastAPI 0.141 wraps included routers in `_IncludedRouter` (no `.path`), so walking `route.path` fails; `matches` is method-aware (a wrong method is only PARTIAL).
 - **Avoid:** mirroring every field of a request model into a tool without checking each is consumed. `OutboundCallCreate.variables` is accepted and silently dropped by `api/outbound.py`, so `call_start` leaves it out → grep each field's use before exposing it.
 - **Mistake:** the MCP client first read its URL and key from the app's `BaseSettings`, whose `env_file=".env"` is relative to the process cwd. An MCP client launched from another project would have loaded THAT project's `.env`, sent its generic `API_KEY` as a Bearer token to the default `:8080` (mission-control on this VPS), and any unknown key in that `.env` aborted the import with `extra_forbidden` (QA C1/C2) → MCP/CLI entrypoints read namespaced env vars (`PIPESONG_API_URL`, `PIPESONG_API_KEY`) from `os.environ` only, with no default URL; the check is a subprocess test run from a scratch cwd that holds a foreign `.env`.
+
+## 2026-10-14 — session wrap (A.0/A.1/B.1 shipped; operator migration line)
+- **Mistake:** handed the operator `psql "$DATABASE_URL" -f scripts/migrations/...sql` as a copy-paste line; on this VPS there is no Pipesong Postgres and `DATABASE_URL` is unset, so psql fell to the local socket and failed → a deploy line must name the HOST it runs on (GPU box after `runpod_setup.sh`, before the API starts); never present a line that cannot succeed where the operator reads it.
+- **Avoid:** proposing Supabase :5433 as a stand-in Pipesong DB. It serves other projects and Pipesong needs its own database with the `vector` extension; that is an operator ruling, not a default.
+- **Better:** checkpoint project memory + push after EACH shipped item (done at A.0, A.1, B.1); the session survived three subagent hand-backs with no loss.
+
