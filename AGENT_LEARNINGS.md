@@ -46,3 +46,8 @@
 - **Avoid:** proposing Supabase :5433 as a stand-in Pipesong DB. It serves other projects and Pipesong needs its own database with the `vector` extension; that is an operator ruling, not a default.
 - **Better:** checkpoint project memory + push after EACH shipped item (done at A.0, A.1, B.1); the session survived three subagent hand-backs with no loss.
 
+## 2026-10-15 — pipecat 1.7.0 → 1.12.0 upgrade
+- **Mistake:** the implementer's changelog audit covered the items I listed and missed the 1.8 mute-strategy change (ErrorFrame unmutes the caller mid-disclosure); qa-auditor R1 found it → an upgrade brief must say "read every `turns/`, `transports/`, `services/<ours>/` module we import, not only the changelog items the orchestrator pre-listed".
+- **Avoid:** trusting "tests green on the main venv" for a dependency bump — the in-place `uv pip install` kept old transitive versions (openai 2.x, kokoro-onnx 0.5.0). Run the suite on a fresh-resolve venv too; that is what the GPU box will get.
+- **Better:** probe first (scratch worktree + own venv, read-only), decide, then implement; the probe's synthetic frame-timing script turned a "should we upgrade?" into a measured ~500 ms/turn finding in one pass.
+
