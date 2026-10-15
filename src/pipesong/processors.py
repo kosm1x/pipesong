@@ -17,12 +17,14 @@ from pipecat.frames.frames import (
     LLMRunFrame,
     LLMTextFrame,
     MetricsFrame,
+    ProposedUserStoppedSpeakingFrame,
     TTSSpeakFrame,
     TranscriptionFrame,
     UserStoppedSpeakingFrame,
 )
 from pipecat.metrics.metrics import TTFBMetricsData
 from pipecat.processors.frame_processor import FrameProcessor, FrameDirection
+from pipecat.turns.user_mute import MuteUntilFirstBotCompleteUserMuteStrategy
 
 from pipesong.models.call import CallLatency, Transcript
 from pipesong.services.tools import ToolExecutor
@@ -113,21 +115,23 @@ class MetricsCollector(FrameProcessor):
     reported after the turn's last ``LLMFullResponseStartFrame``; speech before it
     (disclosure, tool fillers) never counts. A corpus clip reports ~0 here.
 
-    ``ttfa_ms`` is time to first audio as the caller hears it: from the downstream
-    ``UserStoppedSpeakingFrame`` (Flux EndOfTurn, broadcast right after the final
-    transcript) to the next ``BotStartedSpeakingFrame`` coming UPSTREAM from the output
-    transport (emitted just before the first chunk is written). Recorded once per user
-    turn. Both are SystemFrames, so neither waits behind queued audio on the way here
-    (the user aggregator forwards the former: ``llm_response_universal.py:824-825``).
-    The stop-timeout path (``turns/user_turn_controller.py:355-359``) can send a second
-    ``UserStoppedSpeakingFrame`` when Flux ends a turn with no transcript; it re-stamps
-    the turn end and is harmless because no response follows.
+    ``ttfa_ms`` is time to first audio as the caller hears it: from the user end of turn
+    as Flux reports it to the next ``BotStartedSpeakingFrame`` coming UPSTREAM from the
+    output transport (emitted just before the first chunk is written). Recorded once per
+    user turn. The start is ``stt_eot``, which ``EOTStamp`` (right after STT) sets on
+    Flux's ``ProposedUserStoppedSpeakingFrame``; this collector adopts it when the user
+    aggregator's ``UserStoppedSpeakingFrame`` arrives (pipecat 1.12: the aggregator emits
+    that frame only after the final transcript has cleared TranscriptCapture's DB commit
+    and RAG's retrieval, so stamping here would leave that caller-visible time out). With
+    no stamp (pipelines built without ``EOTStamp``) the start is this frame's arrival.
+    ``UserStoppedSpeakingFrame`` and ``BotStartedSpeakingFrame`` are SystemFrames, so
+    neither waits behind queued audio on the way here.
 
     ``prerecorded_hits`` counts corpus clips played in the turn (one emitter TTFB each).
 
     Ordering: MetricsFrame is a SystemFrame, LLMFullResponse{Start,End}Frame are control
-    frames, and pipecat 1.7 processes the two classes on separate tasks. The TTFB window
-    relies on the live gaps between them (LLM time to first sentence, synthesis time);
+    frames, and pipecat 1.12 (as 1.7) processes the two classes on separate tasks. The TTFB
+    window relies on the live gaps between them (LLM time to first sentence, synthesis time);
     the ttfa flush handles BotStartedSpeaking landing before or after the response end.
     """
 
@@ -149,6 +153,7 @@ class MetricsCollector(FrameProcessor):
         self._turn_index = 0
         self._current_turn: dict[str, float] = {}
         self._eot: float | None = None  # monotonic user end of turn, awaiting first audio
+        self.stt_eot: float | None = None  # set by EOTStamp at the STT boundary
         self._flush_deferred = False  # response ended before its first audio played
 
     def _classify_metric(self, processor_name: str) -> str | None:
@@ -187,7 +192,8 @@ class MetricsCollector(FrameProcessor):
         elif isinstance(frame, UserStoppedSpeakingFrame) and direction == FrameDirection.DOWNSTREAM:
             if self._flush_deferred:
                 await self._flush_turn()  # previous turn never played audio
-            self._eot = time.monotonic()
+            self._eot = self.stt_eot if self.stt_eot is not None else time.monotonic()
+            self.stt_eot = None
 
         elif isinstance(frame, BotStartedSpeakingFrame) and direction == FrameDirection.UPSTREAM:
             if self._eot is not None:
@@ -250,6 +256,25 @@ class MetricsCollector(FrameProcessor):
             logger.error("MetricsCollector: failed to persist turn %d: %s", self._turn_index, e)
 
         self._turn_index += 1
+
+
+class EOTStamp(FrameProcessor):
+    """Stamps Flux's end of turn for ``MetricsCollector.ttfa_ms`` at the STT boundary.
+
+    Place directly after STT, ahead of TranscriptCapture and RAGProcessor, whose inline
+    awaits hold the final transcript (and the stop proposal queued behind it) before the
+    user aggregator. Does no I/O; passes every frame through unchanged.
+    """
+
+    def __init__(self, collector: MetricsCollector, **kwargs):
+        super().__init__(**kwargs)
+        self._collector = collector
+
+    async def process_frame(self, frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+        if isinstance(frame, ProposedUserStoppedSpeakingFrame) and direction == FrameDirection.DOWNSTREAM:
+            self._collector.stt_eot = time.monotonic()
+        await self.push_frame(frame, direction)
 
 
 # Spanish abbreviations that end with a period but aren't sentence boundaries
@@ -397,6 +422,20 @@ class DisclosureGate(FrameProcessor):
             return
 
         await self.push_frame(frame, direction)
+
+
+class DisclosureUserMuteStrategy(MuteUntilFirstBotCompleteUserMuteStrategy):
+    """Mutes the user until the first bot utterance (the disclosure) completes, errors or not.
+
+    pipecat 1.8 (PR #5390) releases this mute on an ErrorFrame that arrives before the first
+    bot audio (base ``_handle_error``). The first utterance is the legally required recording
+    disclosure: a TTS/transport error ahead of it would unmute the caller, who could then
+    interrupt it, while DisclosureGate keeps dropping transcripts until a
+    BotStoppedSpeakingFrame. Keeps the 1.7 behaviour: only BotStoppedSpeaking unmutes.
+    """
+
+    async def _handle_error(self, frame):
+        pass
 
 
 class TranscriptCapture(FrameProcessor):

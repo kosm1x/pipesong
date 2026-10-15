@@ -1,8 +1,13 @@
 # Core pipeline
-# 2026-08-01 reprobe (docs/REPROBE-2026-08-01.md): 1.4.0 -> 1.7.0 — zero renames in our API
-# surface; 1.5.0 carries the Flux teardown-leak fix (PR #4902), 1.7.0 the Configure-burst
-# fix (PR #4791). Extras verified valid in 1.7.0 metadata. Still UNVALIDATED on live calls.
-pipecat-ai[websocket,deepgram,kokoro,openai]==1.7.0
+# 2026-10-15 (docs/REPROBE-2026-08-01.md §8): 1.7.0 -> 1.12.0 — 87/87 tests on CPU (92 with
+# the 5 new tests). Two behaviour changes handled: Flux now proposes turn ends and
+# the user aggregator emits UserStoppedSpeakingFrame (ttfa start re-stamped at STT by
+# EOTStamp), and empty_user_turn (English re-prompt after a no-transcript barge-in) is off.
+# Removes the ~500 ms per-turn ExternalUserTurnStopStrategy timeout (synthetic run_test probe;
+# live saving unmeasured). Still UNVALIDATED on live calls.
+pipecat-ai[websocket,deepgram,kokoro,openai]==1.12.0
+# 0.6.x create() inserts sentence/clause pauses: bumping means re-rendering the whole corpus (generate_clips.py --prune)
+kokoro-onnx==0.5.0
 
 # Web framework
 fastapi==0.141.1

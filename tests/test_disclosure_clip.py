@@ -124,7 +124,7 @@ def test_truncated_clip_returns_none(tmp_path):
     assert load_disclosure_clip(tmp_path, VOICE, TEXT) is None
 
 
-# --- transport contract (pins pipecat 1.7 behaviour the design relies on) -----
+# --- transport contract (pins pipecat 1.12 behaviour the design relies on) ----
 
 
 class _RecordingOutput(BaseOutputTransport):

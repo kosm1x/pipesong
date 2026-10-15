@@ -7,7 +7,7 @@ Two processors around the TTS service:
 
 ``PreRecordedMixer`` (before TTS) swaps a TTSSpeakFrame whose text hits the corpus
 for a ``PreRecordedClipFrame``. ``PreRecordedClipEmitter`` (right after TTS) expands
-that marker into the frames pipecat 1.7's TTSService emits for one spoken TTSSpeakFrame:
+that marker into the frames pipecat 1.12's TTSService emits for one spoken TTSSpeakFrame:
 
   TTSStartedFrame(context_id, append_to_context)
   TTSAudioRawFrame(clip, context_id)
@@ -141,9 +141,10 @@ class PreRecordedClipEmitter(FrameProcessor):
             await self.push_frame(MetricsFrame(data=[ttfb]), direction)
             await self.push_frame(text, direction)
             await self.push_frame(TTSStoppedFrame(context_id=context_id), direction)
-            # pipecat 1.7 TTSService (push_text_frames=True) only emits this before the
-            # first LLM response of a call: _llm_response_started is set at
-            # tts_service.py:737 and only cleared at :1642, which :1630 skips. The emitter
+            # pipecat 1.12 TTSService (push_text_frames=True) only emits this (on
+            # TTSStoppedFrame, tts_service.py:1031) before the first LLM response of a call
+            # or after an interrupted one: _llm_response_started is set at :885 and cleared
+            # only at :1801, which :1789 skips, or on interruption (:1146). The emitter
             # emits it whenever it is outside a response. No pipesong path sends an
             # append_to_context TTSSpeakFrame outside a response today.
             if frame.append_to_context and not self._in_llm_response:

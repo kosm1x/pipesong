@@ -15,10 +15,10 @@ service (downstream of STT), swaps that first matching frame for the clip. Never
 queue the clip itself at the head: every ``AudioRawFrame`` is STT input, so Flux
 would transcribe the bot's own disclosure as user speech.
 
-The clip is a ``TTSAudioRawFrame``. Pipecat 1.7's output transport only emits
+The clip is a ``TTSAudioRawFrame``. Pipecat 1.12's output transport only emits
 Bot{Started,Stopped}SpeakingFrame for TTS (or speech-stream) audio, not for a plain
-``OutputAudioRawFrame``, and both MuteUntilFirstBotCompleteUserMuteStrategy and
-DisclosureGate key on the first BotStoppedSpeakingFrame. The transport resamples
+``OutputAudioRawFrame``, and both DisclosureUserMuteStrategy and DisclosureGate key on
+the first BotStoppedSpeakingFrame. The transport resamples
 the clip to its own output rate (8 kHz on Telnyx), so clips keep their native rate.
 """
 import hashlib

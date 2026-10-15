@@ -60,6 +60,20 @@
 > API's `API_KEY`); it reads only those env vars, no `.env`, and imports no pipecat. Run and
 > client config in `docs/MCP.md`. Gate B.2 in the GPU window: through the MCP, an agent creates a PipeSong agent,
 > places a test call with `call_start` and reads it back with `call_status` (transcript + latency).
+>
+> **UPDATE 2026-10-15 — pipecat pinned to 1.12.0 (from 1.7.0).** `requirements.txt` pins
+> `pipecat-ai[websocket,deepgram,kokoro,openai]==1.12.0`. The 87 existing tests pass unchanged
+> and there are 92 now, all on CPU. Two 1.12 behaviour changes are handled in code (details in
+> `docs/REPROBE-2026-08-01.md` §8). First, `empty_user_turn=None` on the user aggregator: the
+> 1.12 default answers a no-transcript barge-in with an English re-prompt. Second, the
+> `ttfa_ms` start is stamped at the STT boundary (`EOTStamp` on Flux's
+> `ProposedUserStoppedSpeakingFrame`), because the aggregator's `UserStoppedSpeakingFrame` now
+> arrives after TranscriptCapture/RAG. ttfa rows from 1.7 and 1.12 are not comparable, so read
+> the A.2 / Phase 2 gates from 1.12 rows only. Live-call validation is still pending in the
+> GPU window: turn-taking, barge-in, and the ~500 ms per-turn saving the synthetic probe showed.
+> The disclosure mute keeps its 1.7 behaviour (`DisclosureUserMuteStrategy`: an error before the
+> disclosure's audio no longer unmutes the caller, as 1.8+ would), and `kokoro-onnx` is pinned
+> at 0.5.0, the version the corpus clips were rendered with.
 
 ## State
 

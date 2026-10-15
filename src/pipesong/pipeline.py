@@ -16,10 +16,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
-from pipecat.turns.user_mute import (
-    FunctionCallUserMuteStrategy,
-    MuteUntilFirstBotCompleteUserMuteStrategy,
-)
+from pipecat.turns.user_mute import FunctionCallUserMuteStrategy
 from pipecat.turns.user_turn_strategies import ExternalUserTurnStrategies
 from pipecat.services.deepgram.flux.stt import DeepgramFluxSTTService
 from pipecat.services.kokoro.tts import KokoroTTSService
@@ -35,6 +32,8 @@ from pipesong.prerecorded.disclosure import DisclosureClipPlayer
 from pipesong.prerecorded.mixer import PreRecordedClipEmitter, PreRecordedMixer
 from pipesong.processors import (
     DisclosureGate,
+    DisclosureUserMuteStrategy,
+    EOTStamp,
     MetricsCollector,
     RAGProcessor,
     SentenceStreamBuffer,
@@ -95,15 +94,17 @@ def create_pipeline(
         api_key=settings.deepgram_api_key,
         sample_rate=8000,            # VERIFY: Flux accepts 8 kHz telephony input
         flux_encoding="linear16",
-        should_interrupt=True,       # Flux drives barge-in (replaces Silero's role)
+        # Inert: Flux's recommended strategies carry it, and we pin our own below.
+        # Barge-in comes from ExternalUserTurnStrategies(enable_interruptions=True) default.
+        should_interrupt=True,
         settings=DeepgramFluxSTTService.Settings(
             model="flux-general-multi",   # Spanish via the multilingual model
             language_hints=[language],    # bias toward the agent language (es)
             # 0.5-0.9; lower = faster turns, more false ends. Per-agent override (S1).
             eot_threshold=eot_threshold if eot_threshold is not None else _FLUX_DEFAULT_EOT_THRESHOLD,
-            # eager stays OFF unless the agent explicitly sets it: it speeds responses but
-            # triggers extra speculative LLM calls — a cost regression on a <$0.03/min
-            # product. A/B before enabling fleet-wide (upgrade doc §6 / W3). None = OFF.
+            # Sent to Flux only: speculative inference also needs enable_eager_end_of_turn=True
+            # + EagerUserTurnStrategies, not wired (ROADMAP: optional GPU-window item), so
+            # this produces no extra LLM calls today. None = OFF.
             eager_eot_threshold=eager_eot_threshold,
             eot_timeout_ms=eot_timeout_ms if eot_timeout_ms is not None else _FLUX_DEFAULT_EOT_TIMEOUT_MS,
         ),
@@ -156,9 +157,11 @@ def create_pipeline(
     # uses ExternalUserTurnStrategies instead of a local Silero VAD analyzer. Per-agent
     # turn tuning happens via the eot_* params on the STT settings above (S1 closed).
     # User muting — replaces the STTMuteFilter processor removed in Pipecat 1.0.
-    # MuteUntilFirstBotComplete: muted from t=0 until the first bot utterance ends,
+    # DisclosureUserMuteStrategy: muted from t=0 until the first bot utterance ends,
     # so the legally-required recording disclosure can't be interrupted — including
     # the pre-TTS-audio gap the old FIRST_SPEECH strategy left open (QA 2026-08-04 W2).
+    # It overrides pipecat 1.8+'s MuteUntilFirstBotComplete release-on-error, so a
+    # TTS/transport error before the disclosure's audio keeps the caller muted.
     # FunctionCallUserMuteStrategy keys off Pipecat's native function-call frames; it
     # is inert under the prompt-based ToolCallProcessor (as FUNCTION_CALL already was)
     # and becomes live with the native-tool-calling migration (REPROBE Phase 3).
@@ -168,9 +171,13 @@ def create_pipeline(
         user_params=LLMUserAggregatorParams(
             user_turn_strategies=ExternalUserTurnStrategies(),
             user_mute_strategies=[
-                MuteUntilFirstBotCompleteUserMuteStrategy(),
+                DisclosureUserMuteStrategy(),
                 FunctionCallUserMuteStrategy(),
             ],
+            # 1.12 default injects an English "ask them to repeat" developer turn after a
+            # no-transcript barge-in. A Spanish EmptyUserTurnConfig is a later product call
+            # (the `developer` role must be checked against vLLM first).
+            empty_user_turn=None,
         ),
     )
 
@@ -181,19 +188,21 @@ def create_pipeline(
     # emits TTSSpeakFrames for LLM↔TTS overlap (Phase 4a)
     sentence_buffer = SentenceStreamBuffer()
 
-    # Pipeline: audio in → STT → [disclosure gate] → [user transcript] → [RAG] → context →
-    # LLM → [tool processor] → [assistant transcript] → filter → sentence buffer →
+    # Pipeline: audio in → STT → [EOT stamp] → [disclosure gate] → [user transcript] → [RAG] →
+    # context → LLM → [tool processor] → [assistant transcript] → filter → sentence buffer →
     # [disclosure clip] → [corpus mixer] → TTS → [corpus clip emitter] →
     # [metrics] → audio out
     # (Disclosure/tool-call muting lives on the user aggregator via user_mute_strategies;
     # DisclosureGate keeps pre-disclosure noise out of TranscriptCapture/RAGProcessor,
     # which sit upstream of that mute point — QA 2026-08-04 W1.)
     tool_processor = None
-    processors = [
-        transport.input(),
-        stt,
-        DisclosureGate(),
-    ]
+    metrics = None
+    processors = [transport.input(), stt]
+    if call_id and session_factory:
+        metrics = MetricsCollector(call_id=call_id, session_factory=session_factory)
+        # ttfa start: Flux's end of turn, before TranscriptCapture/RAG hold the transcript
+        processors.append(EOTStamp(metrics))
+    processors.append(DisclosureGate())
     if call_id and session_factory:
         # User capture between STT and aggregator (catches TranscriptionFrame)
         processors.append(TranscriptCapture(call_id=call_id, session_factory=session_factory))
@@ -238,8 +247,8 @@ def create_pipeline(
     if settings.prerecorded_mixer_enabled:
         processors.append(PreRecordedClipEmitter())
     # MetricsCollector after TTS — captures MetricsFrame from all upstream services
-    if call_id and session_factory:
-        processors.append(MetricsCollector(call_id=call_id, session_factory=session_factory))
+    if metrics is not None:
+        processors.append(metrics)
     processors.append(transport.output())
     if audio_buffer:
         processors.append(audio_buffer)

@@ -236,8 +236,8 @@ async def test_mixer_passes_a_miss_through_unchanged(tmp_path):
 @pytest.mark.parametrize(
     "append_to_context, before, expect_push_aggregation",
     [
-        # Standalone TTSSpeakFrame commits its own turn. pipecat 1.7 TTSService only does
-        # this before the call's first LLM response (see the emitter); no pipesong path
+        # Standalone TTSSpeakFrame commits its own turn. pipecat 1.12 TTSService only does
+        # this outside an LLM response (see the emitter); no pipesong path
         # sends an append_to_context TTSSpeakFrame outside a response today.
         (True, [], True),
         (True, [LLMFullResponseStartFrame()], False),  # inside an LLM response: End commits
@@ -631,3 +631,105 @@ async def test_end_call_turn_is_written_at_end_frame(tmp_path):
     assert len(rows) == 1
     assert 200 <= rows[0].ttfa_ms < 600
     assert rows[0].prerecorded_hits == 1
+
+
+class _InlineDelay(FrameProcessor):
+    """Stands where TranscriptCapture / RAGProcessor sit: awaits inline on the transcript."""
+
+    async def process_frame(self, frame, direction):
+        import asyncio
+
+        from pipecat.frames.frames import TranscriptionFrame
+
+        await super().process_frame(frame, direction)
+        if isinstance(frame, TranscriptionFrame):
+            await asyncio.sleep(0.15)
+        await self.push_frame(frame, direction)
+
+
+class _InstantResponse(FrameProcessor):
+    """LLM + TTS in zero time: a context run becomes one spoken sentence."""
+
+    async def process_frame(self, frame, direction):
+        from pipecat.frames.frames import LLMContextFrame
+
+        await super().process_frame(frame, direction)
+        if isinstance(frame, LLMContextFrame):
+            for f in [LLMFullResponseStartFrame(), *_kokoro_sentence(0.0), LLMFullResponseEndFrame()]:
+                await self.push_frame(f)
+            return
+        await self.push_frame(frame, direction)
+
+
+async def test_ttfa_includes_inline_time_between_stt_and_the_user_aggregator():
+    # pipecat 1.12: Flux proposes the turn end (a ControlFrame queued behind the final
+    # transcript) and the aggregator emits UserStoppedSpeakingFrame only once both have
+    # cleared the inline awaits upstream of it. The caller waits through those too.
+    from pipecat.frames.frames import (
+        ProposedUserStartedSpeakingFrame,
+        ProposedUserStoppedSpeakingFrame,
+        TranscriptionFrame,
+    )
+    from pipecat.processors.aggregators.llm_response_universal import LLMUserAggregatorParams
+    from pipecat.turns.user_turn_strategies import ExternalUserTurnStrategies
+
+    from pipesong.processors import EOTStamp
+
+    rows = []
+    collector = _collector(rows)
+    user, _ = LLMContextAggregatorPair(
+        LLMContext(),
+        user_params=LLMUserAggregatorParams(
+            user_turn_strategies=ExternalUserTurnStrategies(), empty_user_turn=None
+        ),
+    )
+    await run_test(
+        Pipeline([EOTStamp(collector), _InlineDelay(), user, _InstantResponse(), collector, _RecordingOutput()]),
+        frames_to_send=[
+            ProposedUserStartedSpeakingFrame(),
+            SleepFrame(sleep=0.1),
+            TranscriptionFrame("hola qué tal", "u", "t"),  # Flux order: transcript, then stop
+            ProposedUserStoppedSpeakingFrame(),
+            SleepFrame(sleep=1.0),
+        ],
+        pipeline_params=PipelineParams(audio_out_sample_rate=8000),
+    )
+
+    assert len(rows) == 1
+    assert 150 <= rows[0].ttfa_ms < 500
+
+
+
+async def test_turn_without_a_fresh_stop_proposal_never_reuses_the_last_turns_stamp():
+    # Turn 2's UserStoppedSpeakingFrame comes with no proposal (e.g. the aggregator's stop
+    # watchdog): ttfa must start at its arrival, not at turn 1's consumed stamp.
+    from pipecat.frames.frames import ProposedUserStoppedSpeakingFrame, UserStoppedSpeakingFrame
+
+    from pipesong.processors import EOTStamp
+
+    rows = []
+    collector = _collector(rows)
+
+    def response():  # paced: a burst lets the MetricsFrame overtake the response start
+        return [LLMFullResponseStartFrame(), SleepFrame(sleep=0.05), *_kokoro_sentence(0.0), LLMFullResponseEndFrame()]
+
+    await run_test(
+        Pipeline([EOTStamp(collector), collector, _RecordingOutput()]),
+        frames_to_send=[
+            ProposedUserStoppedSpeakingFrame(),
+            SleepFrame(sleep=0.05),  # the aggregator resolves the proposal
+            UserStoppedSpeakingFrame(),
+            SleepFrame(sleep=0.1),
+            *response(),
+            SleepFrame(sleep=0.6),  # turn 1 plays and the bot stops
+            UserStoppedSpeakingFrame(),
+            SleepFrame(sleep=0.1),
+            *response(),
+            SleepFrame(sleep=0.5),
+        ],
+        pipeline_params=PipelineParams(audio_out_sample_rate=8000),
+    )
+
+    assert len(rows) == 2
+    assert 150 <= rows[0].ttfa_ms < 500  # from turn 1's stamp (proposal + 50 ms)
+    assert 100 <= rows[1].ttfa_ms < 400  # from turn 2's own arrival
